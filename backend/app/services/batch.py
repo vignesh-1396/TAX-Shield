@@ -6,7 +6,7 @@ from typing import Dict, List
 from app.core.config import settings
 from app.db.crud import batch as batch_crud
 from app.db.crud import check as check_crud
-from app.services.gsp import MockGSPProvider
+from app.services.gsp import get_gsp_provider
 from app.services.decision import DecisionEngine
 from app.services.pdf import generate_certificate
 
@@ -49,7 +49,8 @@ def process_batch_sync(job_id: str) -> Dict:
     
     for item in items:
         try:
-            vendor_data = MockGSPProvider.get_vendor_data(item['gstin'])
+            provider = get_gsp_provider()
+            vendor_data = provider.get_vendor_data(item['gstin'])
             decision_result = engine.check_vendor(vendor_data)
             
             check_id = check_crud.save_compliance_check(

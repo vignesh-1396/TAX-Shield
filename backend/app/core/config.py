@@ -22,6 +22,12 @@ class Settings(BaseModel):
     # If DATABASE_URL is not set, it defaults to SQLite
     DATABASE_URL: Optional[str] = os.getenv("DATABASE_URL")
     
+    # GSP Configuration
+    # Modes: "mock" (default), "sandbox" (zoop.one)
+    GSP_MODE: str = os.getenv("GSP_MODE", "mock")
+    SANDBOX_CLIENT_ID: Optional[str] = os.getenv("SANDBOX_CLIENT_ID")
+    SANDBOX_SECRET: Optional[str] = os.getenv("SANDBOX_SECRET")
+
     # CORS
     BACKEND_CORS_ORIGINS: List[str] = [
         "http://localhost:3000",

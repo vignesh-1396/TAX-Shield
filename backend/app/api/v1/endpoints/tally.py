@@ -1,9 +1,9 @@
-from fastapi import APIRouter, HTTPException, Header
+from fastapi import APIRouter, HTTPException, Header, Depends
 from pydantic import BaseModel
 from typing import Optional
 from datetime import datetime
 import os
-from app.services.gsp import MockGSPProvider
+from app.services.gsp import get_gsp_provider
 from app.services.decision import DecisionEngine
 from app.db.crud import check as check_crud
 
@@ -56,7 +56,8 @@ async def tally_compliance_check(
         )
     
     try:
-        vendor_data = MockGSPProvider.get_vendor_data(gstin)
+        provider = get_gsp_provider()
+        vendor_data = provider.get_vendor_data(gstin)
         result = engine.check_vendor(vendor_data, request.amount)
         
         decision = result.get("decision", "HOLD")

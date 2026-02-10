@@ -4,7 +4,7 @@ from datetime import datetime
 
 from app.schemas.check import CheckRequest, CheckResponse, VendorDetail
 from app.services.decision import DecisionEngine
-from app.services.gsp import MockGSPProvider
+from app.services.gsp import get_gsp_provider
 from app.services.pdf import generate_certificate
 from app.db.crud import vendor as vendor_crud
 from app.db.crud import check as check_crud
@@ -27,7 +27,8 @@ async def check_compliance(request: CheckRequest):
     data_source = "CACHE"
     
     if not vendor_data:
-        vendor_data = MockGSPProvider.get_vendor_data(gstin)
+        provider = get_gsp_provider()
+        vendor_data = provider.get_vendor_data(gstin)
         data_source = "GSP_LIVE"
         if vendor_data:
             vendor_crud.save_vendor(vendor_data)
@@ -74,7 +75,8 @@ async def check_compliance(request: CheckRequest):
 async def get_vendor_details(gstin: str):
     """Get detailed vendor information with decision."""
     gstin = gstin.strip().upper()
-    vendor_data = MockGSPProvider.get_vendor_data(gstin)
+    provider = get_gsp_provider()
+    vendor_data = provider.get_vendor_data(gstin)
     if not vendor_data:
         raise HTTPException(status_code=404, detail="Vendor not found")
     
