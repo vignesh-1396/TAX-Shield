@@ -61,7 +61,8 @@
 
 | Component | Effort | Cost |
 |-----------|--------|------|
-| Cloud Deployment | 1 hour | ₹0 (free tier) |
+| Cloud Deployment | 1 hour | ✅ DONE |
+
 | GSP API Integration | 1-2 days | ₹15,000/year |
 | Tally TDL Plugin | 2-3 weeks | ₹40,000-60,000 |
 | PDF Certificates | 2-3 hours | ₹0 |
@@ -148,11 +149,12 @@ ERROR HANDLING:
 - [x] Build STOP/HOLD/RELEASE result cards
 - [x] Add test scenario buttons
 
-### Phase 3: Cloud Deployment ⏳ NEXT
-- [ ] Deploy backend to Render.com
-- [ ] Deploy frontend to Vercel
-- [ ] Configure environment variables
-- [ ] Test public URLs
+### Phase 3: Cloud Deployment ✅ DONE
+- [x] Deploy backend to Render.com
+- [x] Configure environment variables (JWT_SECRET, DATABASE_URL)
+- [x] Set up Supabase PostgreSQL with Connection Pooler
+- [x] Test public URLs
+
 
 ### Phase 4: Tally TDL ⏳ FREELANCER
 - [ ] Find TDL developer (Upwork/local)

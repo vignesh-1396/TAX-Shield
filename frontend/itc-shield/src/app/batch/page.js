@@ -36,7 +36,7 @@ export default function BatchPage() {
         formData.append("file", file);
 
         try {
-            const response = await fetch(`${API_URL}/batch/upload`, {
+            const response = await fetch(`${API_URL}/api/v1/batch/upload`, {
                 method: "POST",
                 body: formData,
             });
@@ -170,7 +170,7 @@ export default function BatchPage() {
 
                     {result.status === "COMPLETED" && result.job_id && (
                         <a
-                            href={`${API_URL}/batch/download/${result.job_id}`}
+                            href={`${API_URL}/api/v1/batch/download/${result.job_id}`}
                             className="btn btn-download"
                             style={{
                                 display: "inline-flex",

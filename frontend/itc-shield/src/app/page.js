@@ -36,7 +36,7 @@ export default function Home() {
     setResult(null);
 
     try {
-      const response = await fetch(`${API_URL}/check_compliance`, {
+      const response = await fetch(`${API_URL}/api/v1/compliance/check`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -202,7 +202,7 @@ export default function Home() {
           </div>
           {result.check_id && (
             <a
-              href={`${API_URL}/certificate/${result.check_id}`}
+              href={`${API_URL}/api/v1/compliance/certificate/${result.check_id}`}
               className="btn btn-download"
               style={{
                 marginTop: "1rem",

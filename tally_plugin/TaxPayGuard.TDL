@@ -14,8 +14,8 @@
 
 [System: Variable]
     ;; Configuration - Change this to your TaxPay Guard server URL
-    TPG API URL : "http://localhost:8000/tally/check"
-    TPG Ping URL : "http://localhost:8000/tally/ping"
+    TPG API URL : "https://itc-shield.onrender.com/api/v1/tally/check"
+    TPG Ping URL : "https://itc-shield.onrender.com/api/v1/tally/ping"
     
     ;; Variables for storing response
     TPG Decision : ""
