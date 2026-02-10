@@ -1,0 +1,589 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Due Diligence Certificate</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        @page {
+            size: A4;
+            margin: 1.5cm;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            color: #1e293b;
+            line-height: 1.6;
+            background: #fff;
+            position: relative;
+        }
+
+        /* Watermark Pattern */
+        .watermark {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) rotate(-30deg);
+            font-size: 120px;
+            font-weight: 800;
+            color: rgba(30, 64, 175, 0.03);
+            white-space: nowrap;
+            pointer-events: none;
+            z-index: -1;
+        }
+
+        /* Gradient Top Bar */
+        .top-bar {
+            height: 6px;
+            background: linear-gradient(90deg, #1e40af 0%, #3b82f6 50%, #06b6d4 100%);
+            margin-bottom: 25px;
+        }
+
+        /* Header */
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            padding-bottom: 20px;
+            margin-bottom: 25px;
+            border-bottom: 2px solid #e2e8f0;
+        }
+
+        .logo-section {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .logo-icon {
+            width: 48px;
+            height: 48px;
+            background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 24px;
+            box-shadow: 0 4px 12px rgba(30, 64, 175, 0.25);
+        }
+
+        .logo-text {
+            font-size: 22px;
+            font-weight: 700;
+            background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .header-right {
+            text-align: right;
+        }
+
+        .report-title {
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #64748b;
+            font-weight: 600;
+        }
+
+        .check-id {
+            font-size: 14px;
+            font-weight: 700;
+            color: #1e40af;
+            margin-top: 4px;
+            font-family: 'Consolas', 'Monaco', monospace;
+        }
+
+        /* Status Box */
+        .status-box {
+            padding: 28px 32px;
+            border-radius: 16px;
+            margin-bottom: 30px;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .status-box::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            opacity: 0.05;
+            background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23000000' fill-opacity='1'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+        }
+
+        .status-RELEASE {
+            background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+            border: 2px solid #86efac;
+            box-shadow: 0 4px 20px rgba(34, 197, 94, 0.15);
+        }
+
+        .status-HOLD {
+            background: linear-gradient(135deg, #fefce8 0%, #fef9c3 100%);
+            border: 2px solid #fde047;
+            box-shadow: 0 4px 20px rgba(234, 179, 8, 0.15);
+        }
+
+        .status-STOP {
+            background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%);
+            border: 2px solid #fca5a5;
+            box-shadow: 0 4px 20px rgba(239, 68, 68, 0.15);
+        }
+
+        .status-icon {
+            width: 56px;
+            height: 56px;
+            border-radius: 50%;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 28px;
+            margin-bottom: 12px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .status-RELEASE .status-icon {
+            background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+            box-shadow: 0 4px 12px rgba(34, 197, 94, 0.4);
+            color: white;
+        }
+
+        .status-HOLD .status-icon {
+            background: linear-gradient(135deg, #eab308 0%, #ca8a04 100%);
+            box-shadow: 0 4px 12px rgba(234, 179, 8, 0.4);
+            color: white;
+        }
+
+        .status-STOP .status-icon {
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+            box-shadow: 0 4px 12px rgba(239, 68, 68, 0.4);
+            color: white;
+        }
+
+        .status-title {
+            font-size: 36px;
+            font-weight: 800;
+            margin: 0;
+            letter-spacing: 2px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .status-RELEASE .status-title {
+            color: #166534;
+        }
+
+        .status-HOLD .status-title {
+            color: #854d0e;
+        }
+
+        .status-STOP .status-title {
+            color: #991b1b;
+        }
+
+        .status-subtitle {
+            font-size: 14px;
+            margin-top: 8px;
+            opacity: 0.85;
+            font-weight: 500;
+            position: relative;
+            z-index: 1;
+        }
+
+        .status-RELEASE .status-subtitle {
+            color: #15803d;
+        }
+
+        .status-HOLD .status-subtitle {
+            color: #a16207;
+        }
+
+        .status-STOP .status-subtitle {
+            color: #b91c1c;
+        }
+
+        /* Grid Container */
+        .grid-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin-bottom: 25px;
+        }
+
+        /* Section Styling */
+        .section {
+            background: #f8fafc;
+            border-radius: 12px;
+            padding: 20px;
+            border: 1px solid #e2e8f0;
+        }
+
+        .section-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 16px;
+            padding-bottom: 12px;
+            border-bottom: 2px solid #1e40af;
+        }
+
+        .section-icon {
+            width: 32px;
+            height: 32px;
+            background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 16px;
+        }
+
+        .section-title {
+            font-size: 13px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #1e40af;
+        }
+
+        .info-row {
+            margin-bottom: 14px;
+        }
+
+        .info-row:last-child {
+            margin-bottom: 0;
+        }
+
+        .info-label {
+            font-size: 11px;
+            color: #64748b;
+            display: block;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 3px;
+        }
+
+        .info-value {
+            font-size: 15px;
+            font-weight: 600;
+            color: #0f172a;
+        }
+
+        .timestamp-badge {
+            background: linear-gradient(135deg, #e2e8f0 0%, #cbd5e1 100%);
+            color: #334155;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 12px;
+            font-weight: 600;
+            display: inline-block;
+        }
+
+        .risk-clean {
+            color: #16a34a;
+            font-weight: 700;
+        }
+
+        .risk-atrisk {
+            color: #ea580c;
+            font-weight: 700;
+        }
+
+        /* Compliance Table */
+        .table-section {
+            margin-bottom: 25px;
+        }
+
+        .table-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .compliance-table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+            font-size: 13px;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+        }
+
+        .compliance-table th {
+            text-align: left;
+            background: linear-gradient(135deg, #1e40af 0%, #2563eb 100%);
+            padding: 12px 16px;
+            color: white;
+            font-weight: 600;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .compliance-table td {
+            padding: 12px 16px;
+            border-bottom: 1px solid #e2e8f0;
+            background: white;
+        }
+
+        .compliance-table tr:nth-child(even) td {
+            background: #f8fafc;
+        }
+
+        .compliance-table tr:last-child td {
+            border-bottom: none;
+        }
+
+        .delay-ontime {
+            color: #16a34a;
+            font-weight: 600;
+        }
+
+        .delay-late {
+            color: #dc2626;
+            font-weight: 600;
+        }
+
+        /* QR Code Section */
+        .qr-section {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 25px;
+            border: 1px solid #cbd5e1;
+        }
+
+        .qr-info {
+            flex: 1;
+        }
+
+        .qr-title {
+            font-size: 14px;
+            font-weight: 700;
+            color: #1e40af;
+            margin-bottom: 4px;
+        }
+
+        .qr-subtitle {
+            font-size: 12px;
+            color: #64748b;
+        }
+
+        .qr-code {
+            width: 80px;
+            height: 80px;
+            background: white;
+            border-radius: 8px;
+            padding: 8px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .qr-code img {
+            width: 100%;
+            height: 100%;
+        }
+
+        /* Footer */
+        .footer {
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 2px solid #e2e8f0;
+            text-align: center;
+        }
+
+        .verification-seal {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%);
+            color: white;
+            padding: 8px 20px;
+            border-radius: 50px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-bottom: 15px;
+            box-shadow: 0 4px 12px rgba(30, 64, 175, 0.3);
+        }
+
+        .seal-icon {
+            font-size: 16px;
+        }
+
+        .disclaimer {
+            font-size: 10px;
+            color: #64748b;
+            line-height: 1.6;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        .footer-timestamp {
+            margin-top: 12px;
+            font-size: 11px;
+            color: #94a3b8;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="watermark">TAXPAYGUARD</div>
+
+    <!-- Gradient Top Bar -->
+    <div class="top-bar"></div>
+
+    <!-- Header -->
+    <div class="header">
+        <div class="logo-section">
+            <div class="logo-icon">🛡️</div>
+            <div class="logo-text">TaxPayGuard</div>
+        </div>
+        <div class="header-right">
+            <div class="report-title">Vendor Due Diligence Certificate</div>
+            <div class="check-id">#CHK-20260210-R1ZX</div>
+        </div>
+    </div>
+
+    <!-- Decision Status Box -->
+    <div class="status-box status-STOP">
+        <div class="status-icon">
+            ✕
+        </div>
+        <h1 class="status-title">STOP</h1>
+        <div class="status-subtitle">GST Registration Cancelled - ITC not claimable</div>
+    </div>
+
+    <!-- Two Column Grid -->
+    <div class="grid-container">
+        <!-- Vendor Details -->
+        <div class="section">
+            <div class="section-header">
+                <div class="section-icon">🏢</div>
+                <div class="section-title">Vendor Details</div>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Vendor Name</span>
+                <span class="info-value">CANCELLED VENDOR LTD</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">GSTIN</span>
+                <span class="info-value">01AABCU9603R1ZX</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">GST Status</span>
+                <span class="info-value">Cancelled</span>
+            </div>
+        </div>
+
+        <!-- Verification Evidence -->
+        <div class="section">
+            <div class="section-header">
+                <div class="section-icon">✓</div>
+                <div class="seal-badge">Verified by TaxPayGuard</div>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Data Timestamp (Crucial)</span>
+                <span class="info-value timestamp-badge">10-Feb-2026 01:58:07 IST</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Rule 37A Check</span>
+                <span
+                    class="info-value risk-atrisk">CRITICAL RISK</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filing History Table -->
+    <div class="table-section">
+        <div class="table-header">
+            <div class="section-icon">📊</div>
+            <div class="section-title">GSTR-3B Filing History (Last 3 Months)</div>
+        </div>
+        <table class="compliance-table">
+            <thead>
+                <tr>
+                    <th>Tax Period</th>
+                    <th>Date Filed</th>
+                    <th>Status</th>
+                    <th>Delay</th>
+                </tr>
+            </thead>
+            <tbody>
+                
+                <tr>
+                    <td>Dec 2025</td>
+                    <td>-</td>
+                    <td>Not Filed</td>
+                    <td class="delay-late">N/A</td>
+                </tr>
+                
+                <tr>
+                    <td>Nov 2025</td>
+                    <td>-</td>
+                    <td>Not Filed</td>
+                    <td class="delay-late">N/A</td>
+                </tr>
+                
+                <tr>
+                    <td>Oct 2025</td>
+                    <td>-</td>
+                    <td>Not Filed</td>
+                    <td class="delay-late">N/A</td>
+                </tr>
+                
+            </tbody>
+        </table>
+    </div>
+
+    <!-- QR Code Verification -->
+    <div class="qr-section">
+        <div class="qr-info">
+            <div class="qr-title">📱 Quick Verification</div>
+            <div class="qr-subtitle">Scan to verify this certificate's authenticity</div>
+        </div>
+        <div class="qr-code">
+            
+            <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAKQAAACkCAIAAACW1xIWAAAEeUlEQVR4nO2dwY3dMAwFkyB9uJZ0kFLTQWpRJZurLkJIkPwyMDPHXVnW9wNNi6Ko719fX9+EwY/bA5DPodggFBuEYoNQbBCKDUKxQfw8/eP59af9Zuvv7//2v7epEOn/CfzG03iy49/bZ8eQ5TQGLRuEYoNQbBBHn93lRyu+s+Lnst8HT+Be+9+zvjnyDCee846WDUKxQSg2iJDP3qnMTSP9ZH1npJ+JMUzHErqe846WDUKxQSg2iLTP7qIrRh3pM/L3nb3NRPtbaNkgFBuEYoO45rO7qKwNPwH/+ja/W0HLBqHYIBQbRNpnvzlHrJIv9hRywbKx7um17RNaNgjFBqHYIEI+eyK3uSum3bX+vTNx3zc8Zy0bhGKDUGwQ399QU6VrDbhr79Ya8PFvQMsGodggFBtEaH92xSd17WOO9Dm9zv0MzK0j962MbUfLBqHYIBQbxNFnd80RK74n62snxvwU4tVd3x9dY9OyQSg2CMUGkZ5nR9rf2q9VmadmmfDl2b3mWf+tZYNQbBCKDeK4nv3JOe6tNeOnELePtM9eO70WrmWDUGwQig1iJDbeVUs8u2e6q/5ohK5rs/XaKvEDLRuEYoNQbBDpM0Im9kBPx7En+n8Ka9Vde7pcz5YjvsZBKDaI0F6vW2dkRe41cUbWKpwvUul/Ik9tR8sGodggFBtE2zz7xHT8edrfr0BOe5cPnl7X17JBKDYIxQaRnmd35Wl3rdFOzK13pnPRp/PadrRsEIoNQrFBhPLGb9UY71oLP7EGrj31M/1bIv1o2SAUG4Rigxg516vi8ybWrbPx7Sxd8YaJb5odLRuEYoNQbBDpeuNvqw0eoav26npx3DuClg1CsUEoNojSPLvrXI1Tn9l7TfjU1bROX6lxVmm/o2WDUGwQig2ilDeejetm+4/QVes0QuT7oCuGPxHn17JBKDYIxQaRnmd3zSN3KnuuunK5V6E2WYSub4UKWjYIxQah2CBKtUtvrfVGqNQuXU3r329b49eyQSg2CMUGUTo/+9T+xMQe6+k6oKsp9l65tuu5adkgFBuEYoMIzbMr/mPiLI3ps7DWQD3USp7dCfd6yRFf4yAUG0Q6By3SppJDHslri4znk/57DfjXid+lZYNQbBCKDaK0P3tiz3El/3yiPvmttfyJ7w8tG4Rig1BsEKV59q3aILdiy8+An862qYxHywah2CAUG0R6nt1FV73PE9NniuxMrPFP5BBo2SAUG4RigyjNs7NU/OhEHvuEj6+MsysGfkLLBqHYIBQbRKimykQcuyu3K9s+6zu76rJF2mfJXqtlg1BsEIoNolQH7cTE/q6u9juf3Et9a0/5jpYNQrFBKDaIkbM4u6is42Zj1KvJf5+YyFlzni1HfI2DUGwQ13x2V52v6Vzuncp3QKWf7LXOs8XXOAl9Noi0z56oVdLVfmJu+jTF57tqy0RqpJ/QskEoNgjFBhHy2dP1O7vO1JquhRJh+qwU59kSwtc4CMUGcW1/tnweLRuEYoNQbBCKDUKxQSg2CMX+xuEfRYepaP2CqkAAAAAASUVORK5CYII=" alt="QR Code">
+            
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="footer">
+        <div class="verification-seal">
+            <span class="seal-icon">🔒</span>
+            Verified by ITC Shield
+        </div>
+        <p class="disclaimer">
+            <strong>Disclaimer:</strong> This certificate is a decision support tool based on publicly available data.
+            It does not guarantee vendor behavior or tax compliance. The buyer retains full responsibility for ITC
+            claims under Section 16(2)(c) of the CGST Act.
+        </p>
+        <p class="footer-timestamp">Generated by ITC Protection System | 10-Feb-2026 01:58:07 IST</p>
+    </div>
+
+</body>
+
+</html>

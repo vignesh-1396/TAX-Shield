@@ -1,0 +1,10 @@
+- [x] Research Official Data Availability for ITC Reversals and Rule 37A <!-- id: 0 -->
+- [x] Research Proxy Indicators (Fraud stats, non-filers, DGGI reports) <!-- id: 1 -->
+- [x] Research Enforcement Trends (DGGI, CBIC, SGST actions) <!-- id: 2 -->
+- [x] Research Competitor Landscape and Status Quo <!-- id: 3 -->
+- [x] Compile Research Report <!-- id: 4 -->
+- [x] Create Product Scaling & Architecture Strategy <!-- id: 5 -->
+- [x] Create Detailed Architect-Level Product Plan <!-- id: 8 -->
+- [ ] Create Technical Implementation Guide (From Scratch) <!-- id: 9 -->
+- [ ] Design API Specs for ERP 'Payment Hold' Integration <!-- id: 6 -->
+- [ ] Define 'Audit Defense Pack' Feature Requirements <!-- id: 7 -->

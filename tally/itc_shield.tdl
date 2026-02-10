@@ -1,0 +1,62 @@
+;; ITC Shield for TallyPrime 7.0
+;; Payment Compliance Check Add-on
+
+;; ============ MENU SECTION ============
+[Menu: ITC Shield Menu]
+    Add: Key Item : ITC Status : S : Display : ITCStatusReport
+
+[#Menu: Gateway of Tally]
+    Add: Key Item : ITC Shield : I : Display : ITC Shield Menu
+
+[Report: ITCStatusReport]
+    Form : ITCStatusForm
+
+[Form: ITCStatusForm]
+    Parts : ITCStatusPart
+    Height : 30% Page
+    Width : 50% Page
+
+[Part: ITCStatusPart]
+    Lines : ITCStatusLine
+
+[Line: ITCStatusLine]
+    Fields : ITCStatusField
+
+[Field: ITCStatusField]
+    Set As : "ITC Shield Add-on is ACTIVE! Server: localhost:8000"
+    Style : Normal Bold
+
+;; ============ PAYMENT HOOK SECTION ============
+;; Hook into the Payment voucher form
+[#Form: Payment]
+    On : Form Accept : Yes : Call : ITCCheckVendor
+
+;; The function that checks vendor compliance
+[Function: ITCCheckVendor]
+    Variable : vResponse : String
+    Variable : vGSTIN : String
+    Variable : vPayload : String
+    
+    ;; Get the Party GSTIN from the voucher
+    01 : Set : vGSTIN : $PartyGSTIN
+    
+    ;; Build JSON payload
+    05 : Set : vPayload : "{\"gstin\":\"" + ##vGSTIN + "\",\"amount\":1000,\"party_name\":\"Test\",\"voucher_date\":\"2026-02-09\"}"
+    
+    ;; Make HTTP call to our Python server
+    10 : Set : vResponse : $$HTTPPost:"http://localhost:8000/check_compliance":##vPayload:"application/json"
+    
+    ;; Check if response contains "BLOCK"
+    20 : If : $$StringFind:##vResponse:"BLOCK" > 0
+    30 :     Log : "ITC BLOCKED: " + ##vGSTIN
+    40 :     MsgBox : "PAYMENT BLOCKED" : "Vendor is NON-COMPLIANT! ITC Risk (Rule 37A). Contact CFO."
+    50 :     Return : No
+    60 : End If
+    
+    ;; Check for WARNING
+    70 : If : $$StringFind:##vResponse:"WARN" > 0
+    80 :     MsgBox : "WARNING" : "High Value Transaction. Verify TDS requirements."
+    90 : End If
+    
+    ;; Allow payment
+    99 : Return : Yes

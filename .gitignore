@@ -1,0 +1,22 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+.env
+.DS_Store
+
+# Node
+node_modules/
+.next/
+dist/
+build/
+coverage/
+
+# Tally
+*.tally
+*.T900
+
+# IDE
+.vscode/
+.idea/

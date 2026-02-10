@@ -1,0 +1,761 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ITC Protection - Deep Dive Pitch</title>
+    <style>
+        :root {
+            --primary: #0f172a;
+            --secondary: #334155;
+            --accent: #2563eb;
+            --danger: #ef4444;
+            --success: #16a34a;
+            --bg: #f8fafc;
+            --text: #1e293b;
+            --slide-bg: #ffffff;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Inter', system-ui, sans-serif;
+        }
+
+        body {
+            background-color: var(--secondary);
+            color: var(--text);
+            padding: 2rem;
+            min-height: 100vh;
+        }
+
+        .deck-container {
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+
+        .slide {
+            background: var(--slide-bg);
+            border-radius: 16px;
+            padding: 4rem;
+            margin-bottom: 3rem;
+            box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1);
+            position: relative;
+            overflow: hidden;
+            border: 1px solid #e2e8f0;
+        }
+
+        /* Slide Numbering */
+        .slide::before {
+            counter-increment: slide;
+            content: "Slide " counter(slide);
+            position: absolute;
+            top: 2rem;
+            right: 2rem;
+            font-size: 0.875rem;
+            color: #94a3b8;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        body {
+            counter-reset: slide;
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            font-weight: 800;
+            margin-bottom: 1.5rem;
+            color: var(--primary);
+            line-height: 1.2;
+        }
+
+        h2 {
+            font-size: 1.8rem;
+            color: var(--accent);
+            margin-bottom: 2rem;
+            font-weight: 600;
+        }
+
+        p {
+            font-size: 1.125rem;
+            line-height: 1.7;
+            margin-bottom: 1.5rem;
+            color: var(--secondary);
+        }
+
+        .highlight {
+            background: #eff6ff;
+            border-left: 4px solid var(--accent);
+            padding: 1.5rem;
+            margin: 2rem 0;
+            border-radius: 0 8px 8px 0;
+        }
+
+        .highlight strong {
+            color: var(--accent);
+        }
+
+        .diagram {
+            background: #f1f5f9;
+            padding: 2rem;
+            border-radius: 12px;
+            margin: 2rem 0;
+            text-align: center;
+            font-weight: 600;
+        }
+
+        .diagram span {
+            display: block;
+            margin: 0.5rem 0;
+            color: #64748b;
+            font-size: 0.9rem;
+        }
+
+        .diagram .box {
+            display: inline-block;
+            background: white;
+            padding: 1rem 2rem;
+            border-radius: 8px;
+            border: 2px solid #cbd5e1;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05);
+        }
+
+        .diagram .arrow {
+            font-size: 1.5rem;
+            color: #94a3b8;
+            margin: 0 1rem;
+        }
+
+        .concept-box {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+            margin-top: 2rem;
+        }
+
+        .concept-card {
+            background: #fafafa;
+            padding: 1.5rem;
+            border-radius: 12px;
+            border: 1px solid #e5e7eb;
+        }
+
+        .concept-card h3 {
+            font-size: 1.25rem;
+            margin-bottom: 0.5rem;
+            color: var(--primary);
+        }
+
+        .concept-card.danger {
+            border-color: #fecaca;
+            background: #fef2f2;
+        }
+
+        .concept-card.danger h3 {
+            color: #991b1b;
+        }
+
+        ul {
+            list-style: none;
+        }
+
+        li {
+            margin-bottom: 0.75rem;
+            padding-left: 1.5rem;
+            position: relative;
+        }
+
+        li::before {
+            content: "•";
+            color: var(--accent);
+            position: absolute;
+            left: 0;
+            font-weight: bold;
+        }
+
+        .big-number {
+            font-size: 3rem;
+            font-weight: 900;
+            color: var(--primary);
+            display: block;
+            margin-bottom: 0.5rem;
+        }
+
+        /* Print Button */
+        .print-button {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            background: var(--accent);
+            color: white;
+            padding: 1rem 2rem;
+            border-radius: 50px;
+            border: none;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            box-shadow: 0 10px 25px -5px rgb(37 99 235 / 0.5);
+            transition: all 0.2s;
+            z-index: 1000;
+        }
+
+        .print-button:hover {
+            background: #1d4ed8;
+            transform: translateY(-2px);
+            box-shadow: 0 15px 30px -5px rgb(37 99 235 / 0.6);
+        }
+
+        .icon {
+            width: 1.5em;
+            height: 1.5em;
+            vertical-align: middle;
+            margin-right: 0.25rem;
+        }
+
+        /* Print Styles */
+        @media print {
+            body {
+                background: white;
+                padding: 0;
+            }
+
+            .slide {
+                page-break-after: always;
+                margin-bottom: 0;
+                box-shadow: none;
+                border: none;
+            }
+
+            .print-button {
+                display: none;
+            }
+
+            .slide::before {
+                display: none;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <button class="print-button" onclick="window.print()">📄 Save as PDF</button>
+
+    <div class="deck-container">
+
+        <!-- Slide 1: Title -->
+        <div class="slide">
+            <h1 style="font-size: 3.5rem; margin-top: 2rem;">The Hidden Liability Machine</h1>
+            <p style="font-size: 1.5rem;">Why India's Tax System forces innocent businesses to pay for their vendors'
+                non-compliance.</p>
+            <p style="margin-top: 4rem; font-size: 1rem; color: #64748b;">A Deep Dive into GST Input Tax Credit (ITC)
+                Risks</p>
+        </div>
+
+        <!-- Slide 2: The Basics (Education) -->
+        <div class="slide">
+            <h1>Part 1: How GST is <em>Supposed</em> to Work</h1>
+            <p>Imagine you are a business owner (Buyer).</p>
+
+            <div class="diagram">
+                <div class="box">Vendor</div>
+                <span class="arrow">→ Sells Goods →</span>
+                <div class="box">You (Buyer)</div>
+            </div>
+
+            <p>Let's say you buy raw materials for <strong>₹100</strong>.</p>
+            <ul style="font-size: 1.25rem;">
+                <li>Step 1: The Tax is <strong>18%</strong>.</li>
+                <li>Step 2: You pay the Vendor <strong>₹118</strong> (₹100 Cost + ₹18 Tax).</li>
+                <li>Step 3: The Vendor is <em>supposed</em> to pay that ₹18 to the Government.</li>
+            </ul>
+
+            <div class="highlight">
+                <strong>The "Input Tax Credit" (ITC):</strong><br>
+                Because you already paid ₹18 to the vendor, the government says: "You don't need to pay tax on your own
+                sales until you've used up this ₹18 credit."<br>
+                This ₹18 is like <strong>cash in your digital wallet</strong>.
+            </div>
+        </div>
+
+        <!-- Slide 3: The Trap -->
+        <div class="slide">
+            <h1>Part 2: The Trap</h1>
+            <p>What happens if the Vendor takes your ₹118 and runs away? Or simply forgets to file their tax return?</p>
+
+            <div class="concept-box">
+                <div class="concept-card">
+                    <h3>Common Logic says:</h3>
+                    <p>"I paid the tax to the vendor. I have the invoice. Start an investigation against the vendor!"
+                    </p>
+                </div>
+                <div class="concept-card danger">
+                    <h3>Indian Law says:</h3>
+                    <p>"We don't care. Since the vendor didn't pay us, <strong>YOU</strong> must reverse the credit."
+                    </p>
+                </div>
+            </div>
+
+            <p style="margin-top: 2rem;"><strong>The Consequence:</strong></p>
+            <ul>
+                <li>You lose the ₹18 credit (it vanishes).</li>
+                <li>You must pay <strong>Interest</strong> (18-24%).</li>
+                <li>You face a <strong>Penalty</strong>.</li>
+            </ul>
+            <p class="highlight" style="border-left-color: var(--danger); background: #fef2f2; color: #991b1b;">
+                <strong>Key Insight:</strong> You effectively pay the tax <strong>TWICE</strong> because you trusted the
+                wrong vendor.
+            </p>
+        </div>
+
+        <!-- Slide 4: The Legal Weapon -->
+        <div class="slide">
+            <h1>Part 3: The Weapon (Rule 37A)</h1>
+            <p>The government recently introduced <strong>Rule 37A</strong> to automate this punishment.</p>
+
+            <div
+                style="margin: 2rem 0; padding: 2rem; background: #f8fafc; border: 2px dashed #94a3b8; border-radius: 12px;">
+                <h3 style="margin-bottom: 1rem;">Section 16(2)(c) & Rule 37A</h3>
+                <p><em>"ITC cannot be claimed unless the tax charged has been actually paid to the Government."</em></p>
+            </div>
+
+            <p>This shifted the burden of proof entirely onto the Buyer.</p>
+            <ul>
+                <li><strong>Observation:</strong> The Government has outsourced audit to the Buyer.</li>
+                <li><strong>Result:</strong> CFOs are terrified. A single "Red Flag" vendor can contaminate their
+                    balance sheet for years.</li>
+            </ul>
+        </div>
+
+        <!-- Slide 5: The Current Solution -->
+        <div class="slide">
+            <h1>Part 4: How Companies Cope Today</h1>
+            <p>Current State: <strong>"The Spreadsheet Chaos"</strong></p>
+
+            <div class="diagram">
+                <div class="box">Download Excel from Gov Portal</div>
+                <span class="arrow">→</span>
+                <div class="box">VLOOKUP with Payment List</div>
+                <span class="arrow">→</span>
+                <div class="box">Hope for the best</div>
+            </div>
+
+            <h3>Why this fails:</h3>
+            <ol style="margin-left: 1.5rem; margin-top: 1rem; font-size: 1.1rem;">
+                <li style="margin-bottom: 1rem;"><strong>No Timestamp:</strong> If a vendor was "Green" today but turns
+                    "Red" next year, how do you prove you checked?</li>
+                <li style="margin-bottom: 1rem;"><strong>Human Error:</strong> Accounts Payable teams process thousands
+                    of invoices. They miss things.</li>
+                <li style="margin-bottom: 1rem;"><strong>Legally Defenseless:</strong> A screenshot or Excel sheet is
+                    not strong evidence in court.</li>
+            </ol>
+        </div>
+
+        <!-- Slide 6: Our Solution -->
+        <div class="slide">
+            <h1>Part 5: Our Solution</h1>
+            <h2 style="color: var(--primary);">ITC Protection & Vendor Due Diligence System</h2>
+            <p>We don't just "check" status. We build a <strong>Legal Defense Shield</strong>.</p>
+
+            <div class="concept-box">
+                <div class="concept-card" style="background: #f0fdf4; border-color: #bbf7d0;">
+                    <h3 style="color: #166534;">1. The Gatekeeper</h3>
+                    <p>We sit <strong>before</strong> the payment run. If a vendor is risky, the money doesn't leave the
+                        bank.</p>
+                </div>
+                <div class="concept-card" style="background: #eff6ff; border-color: #bfdbfe;">
+                    <h3 style="color: #1e40af;">2. The Auditor Artifact</h3>
+                    <p>We generate a signed, timestamped PDF Certificate for every check. <br><em>"This file is your
+                            shield."</em></p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 7: Product Flow -->
+        <div class="slide">
+            <h1>Part 6: How It Works (V0)</h1>
+            <p>Simple, operational workflow for Finance Teams.</p>
+
+            <div style="display: flex; flex-direction: column; gap: 1.5rem; margin-top: 2rem;">
+                <div style="display: flex; align-items: center; gap: 1rem;">
+                    <div
+                        style="background: var(--primary); color: white; width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold;">
+                        1</div>
+                    <div
+                        style="background: white; padding: 1rem; border-radius: 8px; flex: 1; border: 1px solid #e2e8f0;">
+                        <strong>Upload:</strong> AP Clerk uploads the "Proposed Payment Batch" (Excel).
+                    </div>
+                </div>
+                <div style="display: flex; align-items: center; gap: 1rem;">
+                    <div
+                        style="background: var(--primary); color: white; width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold;">
+                        2</div>
+                    <div
+                        style="background: white; padding: 1rem; border-radius: 8px; flex: 1; border: 1px solid #e2e8f0;">
+                        <strong>Analyze:</strong> System checks Public GST Data + Rule 37A Triggers.
+                    </div>
+                </div>
+                <div style="display: flex; align-items: center; gap: 1rem;">
+                    <div
+                        style="background: var(--primary); color: white; width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold;">
+                        3</div>
+                    <div
+                        style="background: white; padding: 1rem; border-radius: 8px; flex: 1; border: 1px solid #e2e8f0;">
+                        <strong>Action:</strong> Dashboard shows <span style="color:red; font-weight:bold;">STOP PAY
+                            (Risky)</span> or <span style="color:green; font-weight:bold;">RELEASE (Safe)</span>.
+                    </div>
+                </div>
+                <div style="display: flex; align-items: center; gap: 1rem;">
+                    <div
+                        style="background: var(--primary); color: white; width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold;">
+                        4</div>
+                    <div
+                        style="background: white; padding: 1rem; border-radius: 8px; flex: 1; border: 1px solid #e2e8f0;">
+                        <strong>Evidence:</strong> System emails a "Due Diligence Certificate" PDF to the CFO.
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 8: The Business Opportunity -->
+        <div class="slide">
+            <h1>Part 7: The Opportunity</h1>
+            <p>Why this is a venture-backable business.</p>
+
+            <div class="concept-box">
+                <div class="concept-card">
+                    <span class="big-number">Target</span>
+                    <h3>Exporters</h3>
+                    <p>They live and die by ITC refunds. A mapped solution is 'Must Have', not 'Nice to Have'.</p>
+                </div>
+                <div class="concept-card">
+                    <span class="big-number">Model</span>
+                    <h3>Subscription</h3>
+                    <p>Recurring Annual License. High switching cost (because we hold their compliance history).</p>
+                </div>
+            </div>
+
+            <p style="margin-top: 2rem; text-align: center; color: var(--secondary);">
+                <em>We are selling "Sleep" to CFOs in a highly regulated market.</em>
+            </p>
+        </div>
+
+        <!-- Slide 9: Real Cost Example -->
+        <div class="slide">
+            <h1>Part 8: The Real Cost</h1>
+            <p>This is not a theoretical problem. Here's what happens in reality:</p>
+
+            <div
+                style="background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%); padding: 3rem; border-radius: 16px; margin-top: 2rem; text-align: center; border: 3px solid #fecaca;">
+                <div style="font-size: 4rem; font-weight: 900; color: #991b1b; margin-bottom: 1rem;">₹12.4 Lakhs</div>
+                <p style="font-size: 1.3rem; color: #7f1d1d; font-weight: 600; margin-bottom: 2rem;">ITC Reversed +
+                    Interest + Penalty</p>
+                <div
+                    style="background: white; padding: 1.5rem; border-radius: 12px; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);">
+                    <p style="font-size: 1rem; color: #1e293b; margin: 0;"><strong>Cause:</strong> One vendor's GST
+                        registration was suspended.</p>
+                    <p style="font-size: 1rem; color: #1e293b; margin-top: 0.5rem;"><strong>Buyer's fault:</strong>
+                        None. They had a valid invoice.</p>
+                    <p style="font-size: 1rem; color: #1e293b; margin-top: 0.5rem;"><strong>Outcome:</strong> Buyer paid
+                        the tax twice.</p>
+                </div>
+            </div>
+
+            <p style="margin-top: 2.5rem; text-align: center; font-size: 1.1rem; color: var(--secondary);">
+                <strong>This happens every quarter to mid-sized exporters.</strong><br>
+                Our tool costs <strong>₹5L/year</strong>. One prevented reversal = 2.5x ROI.
+            </p>
+        </div>
+
+        <!-- Slide 10: Decision Logic -->
+        <div class="slide">
+            <h1>Part 9: The Decision Engine</h1>
+            <p>We use <strong>rule-based logic</strong>, not vague "AI risk scores".</p>
+
+            <h3 style="margin-top: 2rem;">Three Decision States:</h3>
+            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1.5rem; margin-top: 1.5rem;">
+                <div
+                    style="background: #fef2f2; padding: 1.5rem; border-radius: 12px; border: 2px solid #fecaca; text-align: center;">
+                    <div style="margin-bottom: 0.5rem;"><svg xmlns="http://www.w3.org/2000/svg" width="48" height="48"
+                            viewBox="0 0 24 24" fill="none" stroke="#991b1b" stroke-width="2" stroke-linecap="round"
+                            stroke-linejoin="round">
+                            <circle cx="12" cy="12" r="10"></circle>
+                            <line x1="15" y1="9" x2="9" y2="15"></line>
+                            <line x1="9" y1="9" x2="15" y2="15"></line>
+                        </svg></div>
+                    <h3 style="color: #991b1b; margin: 0;">PAYMENT HOLD</h3>
+                    <p style="font-size: 0.9rem; margin-top: 0.5rem;">Review required</p>
+                </div>
+                <div
+                    style="background: #fef9c3; padding: 1.5rem; border-radius: 12px; border: 2px solid #fde047; text-align: center;">
+                    <div style="margin-bottom: 0.5rem;"><svg xmlns="http://www.w3.org/2000/svg" width="48" height="48"
+                            viewBox="0 0 24 24" fill="none" stroke="#854d0e" stroke-width="2" stroke-linecap="round"
+                            stroke-linejoin="round">
+                            <path
+                                d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z">
+                            </path>
+                            <line x1="12" y1="9" x2="12" y2="13"></line>
+                            <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                        </svg></div>
+                    <h3 style="color: #854d0e; margin: 0;">HOLD</h3>
+                    <p style="font-size: 0.9rem; margin-top: 0.5rem;">CFO review required</p>
+                </div>
+                <div
+                    style="background: #f0fdf4; padding: 1.5rem; border-radius: 12px; border: 2px solid #bbf7d0; text-align: center;">
+                    <div style="margin-bottom: 0.5rem;"><svg xmlns="http://www.w3.org/2000/svg" width="48" height="48"
+                            viewBox="0 0 24 24" fill="none" stroke="#166534" stroke-width="2" stroke-linecap="round"
+                            stroke-linejoin="round">
+                            <polyline points="20 6 9 17 4 12"></polyline>
+                        </svg></div>
+                    <h3 style="color: #166534; margin: 0;">RELEASE</h3>
+                    <p style="font-size: 0.9rem; margin-top: 0.5rem;">Safe to pay</p>
+                </div>
+            </div>
+
+            <h3 style="margin-top: 2.5rem;">Sample Rules:</h3>
+            <table style="width: 100%; margin-top: 1rem; border-collapse: collapse; font-size: 0.95rem;">
+                <thead>
+                    <tr style="background: #f1f5f9;">
+                        <th style="padding: 0.75rem; text-align: left; border: 1px solid #e2e8f0;">Condition</th>
+                        <th style="padding: 0.75rem; text-align: left; border: 1px solid #e2e8f0;">Decision</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td style="padding: 0.75rem; border: 1px solid #e2e8f0;">GST Status = Cancelled</td>
+                        <td style="padding: 0.75rem; border: 1px solid #e2e8f0; color: #991b1b; font-weight: bold;"><svg
+                                xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+                                fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                stroke-linejoin="round" class="icon">
+                                <circle cx="12" cy="12" r="10"></circle>
+                                <line x1="15" y1="9" x2="9" y2="15"></line>
+                                <line x1="9" y1="9" x2="15" y2="15"></line>
+                            </svg>
+                            PAYMENT HOLD</td>
+                    </tr>
+                    <tr style="background: #fafafa;">
+                        <td style="padding: 0.75rem; border: 1px solid #e2e8f0;">GSTR-3B not filed for 2+ months</td>
+                        <td style="padding: 0.75rem; border: 1px solid #e2e8f0; color: #991b1b; font-weight: bold;"><svg
+                                xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+                                fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                stroke-linejoin="round" class="icon">
+                                <circle cx="12" cy="12" r="10"></circle>
+                                <line x1="15" y1="9" x2="9" y2="15"></line>
+                                <line x1="9" y1="9" x2="15" y2="15"></line>
+                            </svg>
+                            PAYMENT HOLD</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 0.75rem; border: 1px solid #e2e8f0;">Filing delayed by 30+ days</td>
+                        <td style="padding: 0.75rem; border: 1px solid #e2e8f0; color: #854d0e; font-weight: bold;"><svg
+                                xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+                                fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                stroke-linejoin="round" class="icon">
+                                <path
+                                    d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z">
+                                </path>
+                                <line x1="12" y1="9" x2="12" y2="13"></line>
+                                <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                            </svg>
+                            HOLD</td>
+                    </tr>
+                    <tr style="background: #fafafa;">
+                        <td style="padding: 0.75rem; border: 1px solid #e2e8f0;">Active + On-time filings (last 3
+                            periods)</td>
+                        <td style="padding: 0.75rem; border: 1px solid #e2e8f0; color: #166534; font-weight: bold;"><svg
+                                xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+                                fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                stroke-linejoin="round" class="icon">
+                                <polyline points="20 6 9 17 4 12"></polyline>
+                            </svg>
+                            RELEASE</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Slide 10: Operational Workflow -->
+        <div class="slide">
+            <h1>Part 10: Who Uses It & How</h1>
+            <p>This is not a "dashboard for everyone". It has <strong>role-based access</strong>.</p>
+
+            <h3 style="margin-top: 2rem;">User Roles:</h3>
+            <div style="margin-top: 1.5rem;">
+                <div style="display: flex; gap: 1rem; margin-bottom: 1rem; align-items: center;">
+                    <div
+                        style="background: #dbeafe; color: #1e40af; padding: 0.5rem 1rem; border-radius: 8px; font-weight: bold; min-width: 150px;">
+                        AP Clerk</div>
+                    <div style="flex: 1;">Uploads payment batch (Excel)</div>
+                </div>
+                <div style="display: flex; gap: 1rem; margin-bottom: 1rem; align-items: center;">
+                    <div
+                        style="background: #fef3c7; color: #92400e; padding: 0.5rem 1rem; border-radius: 8px; font-weight: bold; min-width: 150px;">
+                        Finance Manager</div>
+                    <div style="flex: 1;">Reviews flagged vendors, can override HOLD</div>
+                </div>
+                <div style="display: flex; gap: 1rem; margin-bottom: 1rem; align-items: center;">
+                    <div
+                        style="background: #ddd6fe; color: #5b21b6; padding: 0.5rem 1rem; border-radius: 8px; font-weight: bold; min-width: 150px;">
+                        CFO</div>
+                    <div style="flex: 1;">Final approval, audit trail access</div>
+                </div>
+            </div>
+
+            <h3 style="margin-top: 2.5rem;">Usage Frequency:</h3>
+            <ul style="margin-top: 1rem; font-size: 1.05rem;">
+                <li><strong>Weekly:</strong> Payment batch upload & review</li>
+                <li><strong>Monthly:</strong> Audit trail review by CFO</li>
+                <li><strong>Quarterly:</strong> Compliance report for statutory audit</li>
+            </ul>
+        </div>
+
+        <!-- Slide 11: Data Freshness & Liability -->
+        <div class="slide">
+            <h1>Part 11: The Trust Framework</h1>
+            <p>We are <strong>honest</strong> about what we can and cannot guarantee.</p>
+
+            <h3 style="margin-top: 2rem;">Data Freshness Policy:</h3>
+            <div
+                style="background: #eff6ff; padding: 1.5rem; border-radius: 12px; margin-top: 1rem; border-left: 4px solid #2563eb;">
+                <p style="margin: 0;"><strong>Every check displays:</strong></p>
+                <p style="margin-top: 0.5rem; font-style: italic;">"This verification is based on publicly available GST
+                    data as of <strong>[DD-MMM-YYYY HH:MM IST]</strong>."</p>
+            </div>
+
+            <h3 style="margin-top: 2.5rem;">Staleness Warnings:</h3>
+            <table style="width: 100%; margin-top: 1rem; border-collapse: collapse;">
+                <thead>
+                    <tr style="background: #f1f5f9;">
+                        <th style="padding: 0.75rem; text-align: left; border: 1px solid #e2e8f0;">Data Age</th>
+                        <th style="padding: 0.75rem; text-align: left; border: 1px solid #e2e8f0;">Warning</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td style="padding: 0.75rem; border: 1px solid #e2e8f0;">
+                            < 24 hours</td>
+                        <td style="padding: 0.75rem; border: 1px solid #e2e8f0;"><svg xmlns="http://www.w3.org/2000/svg"
+                                width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2"
+                                stroke-linecap="round" stroke-linejoin="round" class="icon">
+                                <polyline points="20 6 9 17 4 12"></polyline>
+                            </svg> No warning</td>
+                    </tr>
+                    <tr style="background: #fafafa;">
+                        <td style="padding: 0.75rem; border: 1px solid #e2e8f0;">24-72 hours</td>
+                        <td style="padding: 0.75rem; border: 1px solid #e2e8f0;"><svg xmlns="http://www.w3.org/2000/svg"
+                                width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#d97706" stroke-width="2"
+                                stroke-linecap="round" stroke-linejoin="round" class="icon">
+                                <path
+                                    d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z">
+                                </path>
+                                <line x1="12" y1="9" x2="12" y2="13"></line>
+                                <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                            </svg> "Data is 2 days old"</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 0.75rem; border: 1px solid #e2e8f0;">> 72 hours</td>
+                        <td style="padding: 0.75rem; border: 1px solid #e2e8f0;"><svg xmlns="http://www.w3.org/2000/svg"
+                                width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#dc2626" stroke-width="2"
+                                stroke-linecap="round" stroke-linejoin="round" class="icon">
+                                <circle cx="12" cy="12" r="10"></circle>
+                                <line x1="15" y1="9" x2="9" y2="15"></line>
+                                <line x1="9" y1="9" x2="15" y2="15"></line>
+                            </svg> "Data is stale. Manual verification
+                            required"</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <div
+                style="background: #fef2f2; padding: 1.5rem; border-radius: 12px; margin-top: 2rem; border-left: 4px solid #ef4444;">
+                <p style="margin: 0; font-weight: bold; color: #991b1b;">Liability Disclaimer (on every PDF):</p>
+                <p style="margin-top: 0.5rem; font-size: 0.9rem; color: #7f1d1d;">
+                    "This certificate is a <strong>decision support tool</strong> based on publicly available data. It
+                    does not guarantee vendor behavior. The buyer retains full responsibility for ITC claims under
+                    Section 16(2)(c)."
+                </p>
+            </div>
+        </div>
+
+        <!-- Slide 12: V0 Scope -->
+        <div class="slide">
+            <h1>Part 12: What We Build First (V0)</h1>
+            <p>We are <strong>not</strong> building everything at once.</p>
+
+            <div class="concept-box">
+                <div class="concept-card" style="background: #f0fdf4; border-color: #bbf7d0;">
+                    <h3 style="color: #166534;"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                            viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                            stroke-linecap="round" stroke-linejoin="round" class="icon">
+                            <polyline points="20 6 9 17 4 12"></polyline>
+                        </svg> IN SCOPE (V0)</h3>
+                    <ul style="margin-top: 1rem; list-style: disc; margin-left: 1.5rem;">
+                        <li>Upload Excel with GSTINs</li>
+                        <li>Check GST status (Active/Cancelled/Suspended)</li>
+                        <li>Check GSTR-3B filing history (last 3 periods)</li>
+                        <li>Generate timestamped PDF certificate</li>
+                        <li>Dashboard with STOP/HOLD/RELEASE flags</li>
+                    </ul>
+                </div>
+                <div class="concept-card" style="background: #fef2f2; border-color: #fecaca;">
+                    <h3 style="color: #991b1b;"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                            viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                            stroke-linecap="round" stroke-linejoin="round" class="icon">
+                            <line x1="18" y1="6" x2="6" y2="18"></line>
+                            <line x1="6" y1="6" x2="18" y2="18"></line>
+                        </svg> OUT OF SCOPE (V0)</h3>
+                    <ul style="margin-top: 1rem; list-style: disc; margin-left: 1.5rem;">
+                        <li>Penny drop / Bank verification (V1)</li>
+                        <li>ERP integration (manual export for now)</li>
+                        <li>Email alerts (manual download)</li>
+                        <li>Historical trend analysis (V1)</li>
+                        <li>ML-based risk scoring (rule-based only)</li>
+                    </ul>
+                </div>
+            </div>
+
+            <p style="margin-top: 2rem; text-align: center; font-weight: bold; color: var(--accent);">
+                V0 Goal: Validate the "Auditor Artifact" value with 5 friendly exporters.
+            </p>
+        </div>
+
+        <!-- Slide 13: Pricing & Business Model -->
+        <div class="slide">
+            <h1>Part 13: The Business Model</h1>
+            <p>This is <strong>not</strong> a per-transaction SaaS. This is enterprise control software.</p>
+
+            <h3 style="margin-top: 2rem;">Pricing Model:</h3>
+            <div
+                style="background: #eff6ff; padding: 2rem; border-radius: 12px; margin-top: 1.5rem; text-align: center;">
+                <div style="font-size: 2.5rem; font-weight: bold; color: #1e40af; margin-bottom: 0.5rem;">Annual License
+                    Fee</div>
+                <p style="font-size: 1.1rem; color: #1e40af;">Recurring revenue. High retention.</p>
+            </div>
+
+            <h3 style="margin-top: 2.5rem;">Positioning:</h3>
+            <div class="highlight" style="border-left-color: #16a34a; background: #f0fdf4;">
+                <p style="margin: 0; font-size: 1.2rem; color: #166534;">
+                    <strong>"Cheaper than one bad vendor reversal."</strong>
+                </p>
+                <p style="margin-top: 0.5rem; font-size: 0.95rem; color: #166534;">
+                    If a CFO pays ₹5L/year for this tool and it prevents even ONE ₹10L ITC reversal, the ROI is instant.
+                </p>
+            </div>
+
+            <h3 style="margin-top: 2.5rem;">Why High Retention?</h3>
+            <ul style="margin-top: 1rem; font-size: 1.05rem;">
+                <li><strong>Compliance History Lock-in:</strong> We store their audit trail. Switching = losing
+                    evidence.</li>
+                <li><strong>Statutory Requirement:</strong> Rule 37A is not going away.</li>
+                <li><strong>CFO Trust:</strong> Once they trust the system, they won't risk going back to Excel.</li>
+            </ul>
+        </div>
+
+    </div>
+
+</body>
+
+</html>

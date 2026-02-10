@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ITC Protection System - Workflow Diagram</title>
+    <style>
+        :root {
+            --primary-color: #2563eb;
+            --text-color: #1f2937;
+            --bg-color: #ffffff;
+            --secondary-bg: #f3f4f6;
+            --border-color: #e5e7eb;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            line-height: 1.6;
+            color: var(--text-color);
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 40px 20px;
+            background-color: var(--bg-color);
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            border-bottom: 3px solid var(--primary-color);
+            padding-bottom: 10px;
+            margin-bottom: 30px;
+            color: #111827;
+        }
+
+        h2 {
+            font-size: 1.8rem;
+            margin-top: 40px;
+            margin-bottom: 20px;
+            color: #374151;
+            border-left: 5px solid var(--primary-color);
+            padding-left: 15px;
+        }
+
+        h3 {
+            font-size: 1.3rem;
+            margin-top: 25px;
+            margin-bottom: 15px;
+            color: #4b5563;
+        }
+
+        .diagram-container {
+            background-color: #fff;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            overflow-x: auto;
+            display: flex;
+            justify-content: center;
+        }
+
+        .component-box {
+            background-color: var(--secondary-bg);
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            border-left: 4px solid var(--primary-color);
+        }
+
+        ul {
+            padding-left: 20px;
+        }
+
+        li {
+            margin-bottom: 8px;
+        }
+
+        .print-btn {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+            transition: background-color 0.2s;
+            z-index: 1000;
+        }
+
+        .print-btn:hover {
+            background-color: #1d4ed8;
+        }
+
+        /* Print styles */
+        @media print {
+            body {
+                padding: 0;
+                max-width: 100%;
+            }
+            .print-btn {
+                display: none;
+            }
+            .diagram-container {
+                box-shadow: none;
+                border: 1px solid #ccc;
+                break-inside: avoid;
+            }
+            h1, h2 {
+                break-after: avoid;
+            }
+            .component-box {
+                break-inside: avoid;
+                border: 1px solid #ddd;
+            }
+        }
+        
+        /* Badge styles for roles */
+        .badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 0.85em;
+            font-weight: 600;
+            margin-right: 5px;
+        }
+        .badge-stop { background-color: #fee2e2; color: #991b1b; }
+        .badge-hold { background-color: #fef3c7; color: #92400e; }
+        .badge-release { background-color: #dcfce7; color: #166534; }
+    </style>
+</head>
+<body>
+
+    <button class="print-btn" onclick="window.print()">🖨️ Save as PDF</button>
+
+    <h1>ITC Protection System - Workflow</h1>
+    <p><strong>System Overview:</strong> An architectural blueprint of the pre-payment compliance control system, focusing on the "Gatekeeper" mechanism to preventing GST Input Tax Credit (ITC) loss.</p>
+
+    <h2>1. System Architecture Diagram</h2>
+    <p>This diagram illustrates how the Tally TDL plugin (Client) acts as an interceptor, communicating with the Cloud Backend to validate vendors against the Risk Decision Engine before allowing any payment.</p>
+    
+    <div class="diagram-container">
+        <div class="mermaid">
+            flowchart TD
+                %% Define Styles
+                classDef user fill:#e1f5fe,stroke:#01579b,stroke-width:2px;
+                classDef tally fill:#fff3e0,stroke:#ff6f00,stroke-width:2px;
+                classDef system fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
+                classDef logic fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px,stroke-dasharray: 5 5;
+                classDef external fill:#eceff1,stroke:#455a64,stroke-width:2px;
+
+                %% Users
+                subgraph Users ["User Operations"]
+                    AP_Clerk("👤 AP Clerk<br/>(Tally Operator)"):::user
+                    Fin_Mgr("👤 Finance Manager"):::user
+                    CFO("👤 CFO"):::user
+                end
+
+                %% Client Side
+                subgraph Client ["Client Environment (User PC)"]
+                    Tally("🖥️ Tally Prime"):::tally
+                    TDL_Plugin("🔌 TDL Compliance Plugin<br/>(Interceptor)"):::tally
+                end
+
+                %% Backend System
+                subgraph Backend ["Cloud Backend (Node.js + PostgreSQL)"]
+                    API_Gateway("🌐 API Integration Layer"):::system
+                    
+                    subgraph Risk_Engine ["🧠 Risk Decision Engine"]
+                        Rules("📜 Rule Categories"):::logic
+                        Logic_S("🛑 STOP (S1-3)"):::logic
+                        Logic_H("⚠️ HOLD (H1-3)"):::logic
+                        Logic_R("✅ RELEASE (R1)"):::logic
+                    end
+                    
+                    DB[("🗄️ PostgreSQL DB<br/>(Vendors, Logs, Audit Trail)")]:::system
+                    PDF_Gen("📄 PDF Generator<br/>(ReportLab)"):::system
+                end
+
+                %% External
+                subgraph External ["External Data Sources"]
+                    GSP("☁️ GSP / GST Portal<br/>(Real-time Data)"):::external
+                end
+
+                %% Connections
+                AP_Clerk -- "1. Creates Payment Voucher" --> Tally
+                Tally -- "2. 'Accept' Logic" --> TDL_Plugin
+                TDL_Plugin -- "3. HTTPS POST (GSTIN + Amt)" --> API_Gateway
+                
+                API_Gateway -- "4. Query Cache/History" --> DB
+                API_Gateway -- "5. Fetch Live Data (if stale)" --> GSP
+                
+                API_Gateway -- "6. Evaluate Context" --> Risk_Engine
+                Risk_Engine -.-> Logic_S & Logic_H & Logic_R
+                
+                Logic_S -- "Block Save" --> API_Gateway
+                Logic_H -- "Flag for Review" --> API_Gateway
+                Logic_R -- "Allow Save" --> API_Gateway
+                
+                API_Gateway -- "7. Return Decision (JSON)" --> TDL_Plugin
+                
+                TDL_Plugin -- "8. Block/Warn/Allow" --> Tally
+                
+                %% Management Loop
+                Fin_Mgr -- "9. Reviews HOLD Dashboard" --> API_Gateway
+                CFO -- "10. Overrides/Approves" --> API_Gateway
+                
+                API_Gateway -- "11. Log Action" --> DB
+                
+                %% Audit Loop
+                API_Gateway -- "12. Trigger Report" --> PDF_Gen
+                PDF_Gen -- "13. Email Certificate" --> CFO
+        </div>
+    </div>
+
+    <h2>2. Decision Logic Flow</h2>
+    <p>A step-by-step sequence of how the system processes a single payment request, from the moment the user clicks "Accept" in Tally to the final decision.</p>
+    
+    <div class="diagram-container">
+        <div class="mermaid">
+            sequenceDiagram
+                participant U as AP Clerk (Tally)
+                participant S as System (Backend)
+                participant D as Data Source (DB/GSP)
+                participant M as Finance/CFO
+
+                U->>S: 1. Attempt Payment (GSTIN, Amount)
+                S->>D: 2. Check Data Freshness (<24h?)
+                alt Data Stale (>24h)
+                    S->>D: Fetch Live GST Status & Returns
+                end
+                
+                S->>S: 3. Apply STOP Rules (S1-S3)
+                alt GST Cancelled/Suspended OR GSTR-3B Default
+                    S-->>U: 🚫 STOP: Block Payment (Hard Stop)
+                else
+                    S->>S: 4. Apply HOLD Rules (H1-H3)
+                    alt Delayed Filing / New Vendor / Name Mismatch
+                        S-->>U: ⚠️ HOLD: Warning (Review Required)
+                        S->>M: Notify for Review (Dashboard)
+                        M->>S: Approve/Reject
+                    else
+                        S->>S: 5. RELEASE (R1)
+                        S-->>U: ✅ RELEASE: Allow Payment
+                    end
+                end
+                
+                S->>S: 6. Generate Audit Log & PDF
+        </div>
+    </div>
+
+    <h2>3. Key Components Description</h2>
+
+    <div class="component-box">
+        <h3>1. The Tally Interceptor (Gatekeeper)</h3>
+        <p>This is a custom TDL (Tally Definition Language) plugin that sits silently inside the user's ERP.</p>
+        <ul>
+            <li><strong>Trigger:</strong> Activates immediately when the AP Clerk tries to "Save" a Payment Voucher.</li>
+            <li><strong>Function:</strong> It intercepts the save event and sends the vendor's GSTIN and transaction amount to the cloud.</li>
+            <li><strong>Power:</strong> It has the authority to <strong>CANCEL the Save action</strong> locally if the cloud returns a "STOP" command.</li>
+        </ul>
+    </div>
+
+    <div class="component-box">
+        <h3>2. The Risk Engine (Brain)</h3>
+        <p>The central logic unit that applies the 9 distinct rules to categorize the risk.</p>
+        <ul>
+            <li><span class="badge badge-stop">STOP (Red)</span> <strong>Zero-tolerance issues.</strong>
+                <ul>
+                    <li>S1: Cancelled Registration.</li>
+                    <li>S2: Suspended Registration.</li>
+                    <li>S3: GSTR-3B Not filed for 2+ months (Rule 37A trigger).</li>
+                </ul>
+            </li>
+            <li><span class="badge badge-hold">HOLD (Yellow)</span> <strong>Requires human judgement.</strong>
+                <ul>
+                    <li>H1: Habitual late filer.</li>
+                    <li>H2: New business (<6 months).</li>
+                    <li>H3: Legal vs. Trade name mismatch (>30%).</li>
+                </ul>
+            </li>
+        </ul>
+    </div>
+
+    <div class="component-box">
+        <h3>3. Auditor Artifact (Shield)</h3>
+        <p>The defensive proof needed for future tax notices.</p>
+        <ul>
+            <li><strong>Output:</strong> A timestamped PDF generated for every successful check.</li>
+            <li><strong>Content:</strong> Contains the exact data seen at that moment + Mandatory Liability Disclaimer.</li>
+            <li><strong>Purpose:</strong> To be shown to tax officers optionally 4 years later as proof of "Bona fide" due diligence under Section 16(2)(c).</li>
+        </ul>
+    </div>
+
+    <script type="module">
+        import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+        mermaid.initialize({ startOnLoad: true, theme: 'default' });
+    </script>
+</body>
+</html>
