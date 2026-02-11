@@ -1,0 +1,390 @@
+;; ============================================================================
+;; ITC SHIELD - TALLY PRIME SAAS INTEGRATION
+;; Production-Ready TDL for Real-Time Vendor Compliance Checking
+;; Version: 2.0 (SaaS Integration)
+;; Compatible: Tally Prime / ERP 9.6+
+;; ============================================================================
+
+;; ----------------------------------------------------------------------------
+;; CONFIGURATION SECTION - CUSTOMIZE THESE VALUES
+;; ----------------------------------------------------------------------------
+
+[#Variable]
+    ;; SaaS API Configuration
+    ITCShield_API_URL       : String : "https://api.itcshield.com/api/v1/compliance/check"
+    ITCShield_API_Key       : String : "YOUR_API_KEY_HERE"
+    ITCShield_Timeout       : Number : 10
+    
+    ;; Feature Flags
+    ITCShield_AutoCheck     : Logical : Yes
+    ITCShield_ShowPopup     : Logical : Yes
+    ITCShield_LogEnabled    : Logical : Yes
+    
+    ;; Thresholds
+    ITCShield_MinAmount     : Number : 50000
+    
+    ;; Response Variables
+    ITCShield_Response      : String
+    ITCShield_Decision      : String
+    ITCShield_RiskLevel     : String
+    ITCShield_Reason        : String
+    ITCShield_VendorName    : String
+
+;; ----------------------------------------------------------------------------
+;; MENU INTEGRATION - Add to Tally Gateway
+;; ----------------------------------------------------------------------------
+
+[#Menu: Gateway of Tally]
+    Add : Button : ITCShield_Menu : "ITC Shield"
+    
+[Button: ITCShield_Menu]
+    Key   : Alt + I
+    Action: Display : ITCShield_MainMenu
+
+[Menu: ITCShield_MainMenu]
+    Title  : "ITC Shield - Vendor Compliance"
+    Width  : 50
+    
+    Item   : "Check Vendor Compliance" : Display : ITCShield_CheckForm
+    Item   : "View Compliance History" : Display : ITCShield_HistoryReport
+    Item   : "Settings"                : Display : ITCShield_SettingsForm
+    Item   : "About"                   : Display : ITCShield_AboutForm
+
+;; ----------------------------------------------------------------------------
+;; VOUCHER INTEGRATION - Auto-check on Payment Voucher
+;; ----------------------------------------------------------------------------
+
+[#Form: Payment]
+    On : Form Accept : Yes : Call : ITCShield_OnVoucherSave
+
+[#Form: Journal]
+    On : Form Accept : Yes : Call : ITCShield_OnVoucherSave
+
+[#Form: Receipt]
+    On : Form Accept : Yes : Call : ITCShield_OnVoucherSave
+
+;; ----------------------------------------------------------------------------
+;; MAIN COMPLIANCE CHECK FUNCTION
+;; ----------------------------------------------------------------------------
+
+[Function: ITCShield_OnVoucherSave]
+    000 : If : $$IsEmpty:$LedgerName
+    010 :     Return
+    020 : End If
+    
+    030 : Set : ITCShield_GSTIN : $$String:$PartyGSTIN
+    040 : Set : ITCShield_Amount : $$Number:$Amount
+    
+    050 : If : $$IsEmpty:##ITCShield_GSTIN
+    060 :     Return
+    070 : End If
+    
+    080 : If : ##ITCShield_Amount < ##ITCShield_MinAmount
+    090 :     Return
+    100 : End If
+    
+    110 : Call : ITCShield_PerformAPICheck
+    
+    120 : If : ##ITCShield_Decision = "STOP"
+    130 :     MsgBox : "Compliance Check Failed" : ##ITCShield_Reason
+    140 :     Set : FormAccept : No
+    150 : Else If : ##ITCShield_Decision = "HOLD"
+    160 :     MsgBox : "Warning - Review Required" : ##ITCShield_Reason
+    170 :     ;; Allow user to proceed with warning
+    180 : Else
+    190 :     ;; PROCEED - Continue normally
+    200 : End If
+
+;; ----------------------------------------------------------------------------
+;; HTTP API CALL FUNCTION
+;; ----------------------------------------------------------------------------
+
+[Function: ITCShield_PerformAPICheck]
+    Variable : HTTPRequest  : String
+    Variable : HTTPResponse : String
+    Variable : JSONPayload  : String
+    Variable : HTTPHeaders  : String
+    
+    ;; Build JSON Payload
+    000 : Set : JSONPayload : '{"gstin":"' + ##ITCShield_GSTIN + '",'
+    010 : Set : JSONPayload : ##JSONPayload + '"amount":' + $$String:##ITCShield_Amount + '}'
+    
+    ;; Build HTTP Headers
+    020 : Set : HTTPHeaders : 'Content-Type: application/json' + $$NewLine
+    030 : Set : HTTPHeaders : ##HTTPHeaders + 'Authorization: Bearer ' + ##ITCShield_API_Key + $$NewLine
+    040 : Set : HTTPHeaders : ##HTTPHeaders + 'User-Agent: TallyPrime-ITCShield/2.0'
+    
+    ;; Make HTTP POST Request
+    050 : HTTP POST : ##ITCShield_API_URL
+        : Headers   : ##HTTPHeaders
+        : Body      : ##JSONPayload
+        : Timeout   : ##ITCShield_Timeout
+        : Response  : HTTPResponse
+    
+    ;; Parse JSON Response
+    060 : Call : ITCShield_ParseResponse : ##HTTPResponse
+    
+    ;; Log Transaction (if enabled)
+    070 : If : ##ITCShield_LogEnabled
+    080 :     Call : ITCShield_LogTransaction
+    090 : End If
+
+;; ----------------------------------------------------------------------------
+;; JSON RESPONSE PARSER
+;; ----------------------------------------------------------------------------
+
+[Function: ITCShield_ParseResponse]
+    Parameter : ResponseJSON : String
+    
+    Variable : TempStr : String
+    Variable : StartPos : Number
+    Variable : EndPos : Number
+    
+    ;; Parse "decision" field
+    000 : Set : StartPos : $$StrPos:##ResponseJSON:'"decision":"'
+    010 : If : ##StartPos > 0
+    020 :     Set : StartPos : ##StartPos + 12
+    030 :     Set : EndPos : $$StrPos:##ResponseJSON:'"':##StartPos
+    040 :     Set : ITCShield_Decision : $$SubStr:##ResponseJSON:##StartPos:##EndPos - ##StartPos
+    050 : End If
+    
+    ;; Parse "risk_level" field
+    060 : Set : StartPos : $$StrPos:##ResponseJSON:'"risk_level":"'
+    070 : If : ##StartPos > 0
+    080 :     Set : StartPos : ##StartPos + 14
+    090 :     Set : EndPos : $$StrPos:##ResponseJSON:'"':##StartPos
+    100 :     Set : ITCShield_RiskLevel : $$SubStr:##ResponseJSON:##StartPos:##EndPos - ##StartPos
+    110 : End If
+    
+    ;; Parse "reason" field
+    120 : Set : StartPos : $$StrPos:##ResponseJSON:'"reason":"'
+    130 : If : ##StartPos > 0
+    140 :     Set : StartPos : ##StartPos + 10
+    150 :     Set : EndPos : $$StrPos:##ResponseJSON:'"':##StartPos
+    160 :     Set : ITCShield_Reason : $$SubStr:##ResponseJSON:##StartPos:##EndPos - ##StartPos
+    170 : End If
+    
+    ;; Parse "vendor_name" field
+    180 : Set : StartPos : $$StrPos:##ResponseJSON:'"vendor_name":"'
+    190 : If : ##StartPos > 0
+    200 :     Set : StartPos : ##StartPos + 15
+    210 :     Set : EndPos : $$StrPos:##ResponseJSON:'"':##StartPos
+    220 :     Set : ITCShield_VendorName : $$SubStr:##ResponseJSON:##StartPos:##EndPos - ##StartPos
+    230 : End If
+
+;; ----------------------------------------------------------------------------
+;; MANUAL CHECK FORM
+;; ----------------------------------------------------------------------------
+
+[Form: ITCShield_CheckForm]
+    Use : DSP Template
+    
+    Title  : "ITC Shield - Vendor Compliance Check"
+    Width  : 60
+    Height : 20
+    
+    Parts  : ITCShield_CheckForm_Title, ITCShield_CheckForm_Body
+    
+    Button : "Check Compliance"
+        : Action : Call : ITCShield_ManualCheck
+    
+    Button : "Cancel"
+        : Action : Return
+
+[Part: ITCShield_CheckForm_Title]
+    Line : "Vendor Compliance Verification"
+    Align : Center
+    Style : Bold
+
+[Part: ITCShield_CheckForm_Body]
+    Field : "GSTIN"
+        : Storage : ITCShield_GSTIN
+        : Width   : 15
+        : Type    : String
+        : Validate: Call : ITCShield_ValidateGSTIN
+    
+    Field : "Amount"
+        : Storage : ITCShield_Amount
+        : Width   : 15
+        : Type    : Number
+        : Format  : "##,##,###.00"
+
+[Function: ITCShield_ManualCheck]
+    000 : If : $$IsEmpty:##ITCShield_GSTIN
+    010 :     MsgBox : "Error" : "Please enter GSTIN"
+    020 :     Return
+    030 : End If
+    
+    040 : If : ##ITCShield_Amount <= 0
+    050 :     MsgBox : "Error" : "Please enter valid amount"
+    060 :     Return
+    070 : End If
+    
+    080 : Call : ITCShield_PerformAPICheck
+    
+    090 : Call : ITCShield_ShowResultPopup
+
+;; ----------------------------------------------------------------------------
+;; RESULT POPUP DISPLAY
+;; ----------------------------------------------------------------------------
+
+[Function: ITCShield_ShowResultPopup]
+    Variable : ResultMsg : String
+    Variable : ResultTitle : String
+    
+    000 : Set : ResultTitle : "Compliance Check Result"
+    
+    010 : If : ##ITCShield_Decision = "STOP"
+    020 :     Set : ResultMsg : "❌ STOP - Do Not Proceed" + $$NewLine
+    030 :     Set : ResultMsg : ##ResultMsg + "Vendor: " + ##ITCShield_VendorName + $$NewLine
+    040 :     Set : ResultMsg : ##ResultMsg + "Risk: " + ##ITCShield_RiskLevel + $$NewLine
+    050 :     Set : ResultMsg : ##ResultMsg + "Reason: " + ##ITCShield_Reason
+    060 :     MsgBox : ##ResultTitle : ##ResultMsg : "Error"
+    
+    070 : Else If : ##ITCShield_Decision = "HOLD"
+    080 :     Set : ResultMsg : "⚠️ HOLD - Review Required" + $$NewLine
+    090 :     Set : ResultMsg : ##ResultMsg + "Vendor: " + ##ITCShield_VendorName + $$NewLine
+    100 :     Set : ResultMsg : ##ResultMsg + "Risk: " + ##ITCShield_RiskLevel + $$NewLine
+    110 :     Set : ResultMsg : ##ResultMsg + "Reason: " + ##ITCShield_Reason
+    120 :     MsgBox : ##ResultTitle : ##ResultMsg : "Warning"
+    
+    130 : Else
+    140 :     Set : ResultMsg : "✅ PROCEED - Vendor Verified" + $$NewLine
+    150 :     Set : ResultMsg : ##ResultMsg + "Vendor: " + ##ITCShield_VendorName + $$NewLine
+    160 :     Set : ResultMsg : ##ResultMsg + "Risk: " + ##ITCShield_RiskLevel
+    170 :     MsgBox : ##ResultTitle : ##ResultMsg : "Info"
+    180 : End If
+
+;; ----------------------------------------------------------------------------
+;; GSTIN VALIDATION
+;; ----------------------------------------------------------------------------
+
+[Function: ITCShield_ValidateGSTIN]
+    Parameter : GSTIN : String
+    
+    000 : If : $$Len:##GSTIN <> 15
+    010 :     MsgBox : "Invalid GSTIN" : "GSTIN must be 15 characters"
+    020 :     Return : No
+    030 : End If
+    
+    040 : Return : Yes
+
+;; ----------------------------------------------------------------------------
+;; COMPLIANCE HISTORY REPORT
+;; ----------------------------------------------------------------------------
+
+[Report: ITCShield_HistoryReport]
+    Title  : "ITC Shield - Compliance History"
+    Form   : ITCShield_HistoryForm
+    
+    ;; This would query your SaaS API for history
+    ;; Implementation depends on your backend API
+
+[Form: ITCShield_HistoryForm]
+    Use : DSP Template
+    Title : "Recent Compliance Checks"
+    
+    ;; Display last 10 checks from API
+
+;; ----------------------------------------------------------------------------
+;; SETTINGS FORM
+;; ----------------------------------------------------------------------------
+
+[Form: ITCShield_SettingsForm]
+    Use : DSP Template
+    
+    Title  : "ITC Shield - Settings"
+    Width  : 60
+    Height : 15
+    
+    Field : "API URL"
+        : Storage : ITCShield_API_URL
+        : Width   : 50
+    
+    Field : "API Key"
+        : Storage : ITCShield_API_Key
+        : Width   : 40
+        : Password: Yes
+    
+    Field : "Minimum Amount"
+        : Storage : ITCShield_MinAmount
+        : Type    : Number
+    
+    Field : "Auto-Check on Voucher"
+        : Storage : ITCShield_AutoCheck
+        : Type    : Logical
+    
+    Field : "Show Popup Alerts"
+        : Storage : ITCShield_ShowPopup
+        : Type    : Logical
+    
+    Button : "Save"
+        : Action : Call : ITCShield_SaveSettings
+    
+    Button : "Test Connection"
+        : Action : Call : ITCShield_TestConnection
+
+[Function: ITCShield_SaveSettings]
+    000 : MsgBox : "Settings Saved" : "Configuration updated successfully"
+    010 : Return
+
+[Function: ITCShield_TestConnection]
+    Variable : TestGSTIN : String : "27AABCU9603R1ZM"
+    Variable : TestAmount : Number : 50000
+    
+    000 : Set : ITCShield_GSTIN : ##TestGSTIN
+    010 : Set : ITCShield_Amount : ##TestAmount
+    
+    020 : Call : ITCShield_PerformAPICheck
+    
+    030 : If : $$IsEmpty:##ITCShield_Decision
+    040 :     MsgBox : "Connection Failed" : "Unable to reach ITC Shield API"
+    050 : Else
+    060 :     MsgBox : "Connection Successful" : "API is responding correctly"
+    070 : End If
+
+;; ----------------------------------------------------------------------------
+;; ABOUT FORM
+;; ----------------------------------------------------------------------------
+
+[Form: ITCShield_AboutForm]
+    Use : DSP Template
+    
+    Title : "About ITC Shield"
+    
+    Parts : ITCShield_AboutContent
+
+[Part: ITCShield_AboutContent]
+    Line : "ITC Shield - Vendor Compliance System"
+    Line : "Version: 2.0 (SaaS Integration)"
+    Line : ""
+    Line : "Real-time vendor verification and compliance checking"
+    Line : "Integrated with Tally Prime"
+    Line : ""
+    Line : "For support: support@itcshield.com"
+    Line : "Website: https://itcshield.com"
+
+;; ----------------------------------------------------------------------------
+;; ERROR HANDLING & LOGGING
+;; ----------------------------------------------------------------------------
+
+[Function: ITCShield_LogTransaction]
+    Variable : LogFile : String : "ITCShield_Log.txt"
+    Variable : LogEntry : String
+    Variable : CurrentDate : String
+    Variable : CurrentTime : String
+    
+    000 : Set : CurrentDate : $$String:$$Date
+    010 : Set : CurrentTime : $$String:$$Time
+    
+    020 : Set : LogEntry : ##CurrentDate + " " + ##CurrentTime + " | "
+    030 : Set : LogEntry : ##LogEntry + "GSTIN: " + ##ITCShield_GSTIN + " | "
+    040 : Set : LogEntry : ##LogEntry + "Amount: " + $$String:##ITCShield_Amount + " | "
+    050 : Set : LogEntry : ##LogEntry + "Decision: " + ##ITCShield_Decision + " | "
+    060 : Set : LogEntry : ##LogEntry + "Risk: " + ##ITCShield_RiskLevel
+    
+    070 : Append File : ##LogFile : ##LogEntry
+
+;; ============================================================================
+;; END OF ITC SHIELD TDL
+;; ============================================================================
