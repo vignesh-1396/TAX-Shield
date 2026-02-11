@@ -8,6 +8,7 @@ from typing import Optional, Dict, List
 import requests
 import logging
 from app.core.config import settings
+from app.services.cache import cache
 
 logger = logging.getLogger(__name__)
 
@@ -135,9 +136,15 @@ class SandboxGSPProvider(BaseGSPProvider):
         self.token_expiry = None
 
     def _get_access_token(self) -> Optional[str]:
-        """Authenticate and get access token with caching."""
+        """Authenticate and get access token with Redis caching."""
         try:
-            # Return cached token if valid (buffer of 5 minutes)
+            # Try Redis cache first
+            cached_token = cache.get_gsp_token("sandbox")
+            if cached_token:
+                logger.debug("Using cached GSP token")
+                return cached_token
+            
+            # Return in-memory cached token if valid (buffer of 5 minutes)
             if self.access_token and self.token_expiry:
                 if datetime.now() < (self.token_expiry - timedelta(minutes=5)):
                     return self.access_token
@@ -160,6 +167,9 @@ class SandboxGSPProvider(BaseGSPProvider):
             # Sandbox typically returns 'expires_in' (seconds)
             expires_in = auth_data.get("expires_in", 3600) 
             self.token_expiry = datetime.now() + timedelta(seconds=int(expires_in))
+            
+            # Cache token in Redis
+            cache.set_gsp_token("sandbox", self.access_token, expires_in - 300)  # 5 min buffer
             
             return self.access_token
         except Exception as e:
@@ -286,8 +296,16 @@ class SandboxGSPProvider(BaseGSPProvider):
             return []
 
     def get_vendor_data(self, gstin: str) -> Optional[Dict]:
-        """Fetch real data from Sandbox.co.in"""
+        """Fetch real data from Sandbox.co.in with Redis caching"""
         try:
+            # Check cache first
+            cached_data = cache.get_vendor_data(gstin)
+            if cached_data:
+                logger.info(f"Cache HIT for vendor: {gstin}")
+                return cached_data
+            
+            logger.info(f"Cache MISS for vendor: {gstin}. Fetching from GSP...")
+            
             # Step 1: Get Access Token
             token = self._get_access_token()
             if not token:
@@ -348,7 +366,7 @@ class SandboxGSPProvider(BaseGSPProvider):
             logger.info(f"Retrieved {len(filing_data)} filing records for GSTIN: {gstin}")
 
             # Map to our internal schema
-            return {
+            vendor_data = {
                 "gstin": gstin,
                 "gst_status": data.get("sts") or data.get("status") or "Active",
                 "registration_date": data.get("rgdt") or data.get("registration_date") or "N/A",
@@ -358,6 +376,12 @@ class SandboxGSPProvider(BaseGSPProvider):
                 "last_updated": datetime.now().isoformat(),
                 "source": "GSP_LIVE"
             }
+            
+            # Cache the vendor data for 24 hours
+            cache.set_vendor_data(gstin, vendor_data)
+            logger.info(f"Cached vendor data for: {gstin}")
+            
+            return vendor_data
         except Exception as e:
             logger.error(f"Error fetching data from Sandbox GSP: {str(e)}")
             return None

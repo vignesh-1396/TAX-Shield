@@ -17,8 +17,7 @@ class Settings(BaseModel):
     BATCH_OUTPUT_DIR: str = os.path.join(BASE_DIR, "output", "batches")
     
     # Security
-    # In production, this should be a stable secret key
-    SECRET_KEY: str = os.getenv("JWT_SECRET_KEY", "temporary_secret_key_for_development_only_replace_in_production")
+    SECRET_KEY: str = os.getenv("JWT_SECRET_KEY", "")
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 8  # 8 days
     
@@ -26,11 +25,20 @@ class Settings(BaseModel):
     # If DATABASE_URL is not set, it defaults to SQLite
     DATABASE_URL: Optional[str] = os.getenv("DATABASE_URL")
     
+    # Database Connection Pool Settings
+    DB_POOL_MIN_CONN: int = int(os.getenv("DB_POOL_MIN_CONN", "5"))
+    DB_POOL_MAX_CONN: int = int(os.getenv("DB_POOL_MAX_CONN", "50"))
+    DB_CONNECT_TIMEOUT: int = int(os.getenv("DB_CONNECT_TIMEOUT", "10"))
+    DB_STATEMENT_TIMEOUT: int = int(os.getenv("DB_STATEMENT_TIMEOUT", "30000"))  # 30 seconds
+    
     # GSP Configuration
     # Modes: "mock" (default), "sandbox" (zoop.one)
     GSP_MODE: str = os.getenv("GSP_MODE", "mock")
     SANDBOX_CLIENT_ID: Optional[str] = os.getenv("SANDBOX_CLIENT_ID")
     SANDBOX_SECRET: Optional[str] = os.getenv("SANDBOX_SECRET")
+    
+    # Redis Cache Configuration
+    REDIS_URL: Optional[str] = os.getenv("REDIS_URL", "redis://localhost:6379/0")
 
     # CORS
     BACKEND_CORS_ORIGINS: List[str] = [
@@ -45,6 +53,41 @@ class Settings(BaseModel):
         elif isinstance(v, (list, str)):
             return v
         raise ValueError(v)
+    
+    @validator("SECRET_KEY")
+    def validate_secret_key(cls, v: str) -> str:
+        """Validate JWT secret key - CRITICAL SECURITY CHECK"""
+        if not v:
+            raise ValueError(
+                "JWT_SECRET_KEY environment variable is required! "
+                "Set a strong secret key in your .env file."
+            )
+        
+        # Check for dangerous default values
+        dangerous_defaults = [
+            "temporary_secret_key_for_development_only_replace_in_production",
+            "secret",
+            "changeme",
+            "password",
+            "default"
+        ]
+        
+        if v.lower() in dangerous_defaults:
+            raise ValueError(
+                f"JWT_SECRET_KEY cannot be '{v}'. "
+                "Use a strong, random secret key. "
+                "Generate one with: python -c 'import secrets; print(secrets.token_urlsafe(32))'"
+            )
+        
+        # Warn if secret is too short
+        if len(v) < 32:
+            import warnings
+            warnings.warn(
+                f"JWT_SECRET_KEY is only {len(v)} characters. "
+                "Recommended: 32+ characters for production security."
+            )
+        
+        return v
 
     class Config:
         case_sensitive = True

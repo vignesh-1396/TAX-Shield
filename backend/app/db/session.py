@@ -20,10 +20,25 @@ def _init_pg_pool():
     if _pg_pool is None:
         import psycopg2
         import psycopg2.pool
+        
+        # Get pool settings from config
+        from app.core.config import settings
+        
         _pg_pool = psycopg2.pool.SimpleConnectionPool(
-            minconn=1,
-            maxconn=10,
-            dsn=DATABASE_URL
+            minconn=settings.DB_POOL_MIN_CONN,  # Increased from 1 to 5
+            maxconn=settings.DB_POOL_MAX_CONN,  # Increased from 10 to 50
+            dsn=DATABASE_URL,
+            connect_timeout=settings.DB_CONNECT_TIMEOUT,  # 10 seconds
+            options=f"-c statement_timeout={settings.DB_STATEMENT_TIMEOUT}"  # 30 seconds
+        )
+        
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.info(
+            f"PostgreSQL connection pool initialized: "
+            f"min={settings.DB_POOL_MIN_CONN}, max={settings.DB_POOL_MAX_CONN}, "
+            f"connect_timeout={settings.DB_CONNECT_TIMEOUT}s, "
+            f"statement_timeout={settings.DB_STATEMENT_TIMEOUT}ms"
         )
     return _pg_pool
 
