@@ -12,6 +12,9 @@ node_modules/
 dist/
 build/
 coverage/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
 
 # Tally
 *.tally
@@ -20,3 +23,11 @@ coverage/
 # IDE
 .vscode/
 .idea/
+
+# Local
+*.local
+.gemini/
+brain/
+tmp/
+*.log
+*.sqlite3

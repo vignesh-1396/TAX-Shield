@@ -1,109 +1,98 @@
 "use client";
 import { createContext, useContext, useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+import { supabase } from "../../lib/supabase";
+import toast from "react-hot-toast";
 
 const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
     const [user, setUser] = useState(null);
-    const [token, setToken] = useState(null);
+    const [session, setSession] = useState(null);
     const [loading, setLoading] = useState(true);
     const router = useRouter();
 
-    // Load stored token on mount
     useEffect(() => {
-        const storedToken = localStorage.getItem("token");
-        const storedUser = localStorage.getItem("user");
+        // Check active sessions and sets the user
+        supabase.auth.getSession().then(({ data: { session } }) => {
+            setSession(session);
+            setUser(session?.user ?? null);
+            setLoading(false);
+        });
 
-        if (storedToken && storedUser) {
-            setToken(storedToken);
-            setUser(JSON.parse(storedUser));
-        }
-        setLoading(false);
+        // Listen for changes on auth state (signed in, signed out, etc.)
+        const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+            setSession(session);
+            setUser(session?.user ?? null);
+            setLoading(false);
+        });
+
+        return () => subscription.unsubscribe();
     }, []);
 
     const login = async (email, password) => {
-        const response = await fetch(`${API_URL}/api/v1/auth/login`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ email, password }),
-        });
-
-        if (!response.ok) {
-            const error = await response.json();
-            throw new Error(error.detail || "Login failed");
-        }
-
-        const data = await response.json();
-
-        // Store token and user
-        localStorage.setItem("token", data.access_token);
-        localStorage.setItem("user", JSON.stringify(data.user));
-
-        setToken(data.access_token);
-        setUser(data.user);
-
-        return data;
-    };
-
-    const register = async (email, password, name, companyName = "") => {
-        const response = await fetch(`${API_URL}/api/v1/auth/register`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
+        try {
+            const { data, error } = await supabase.auth.signInWithPassword({
                 email,
                 password,
-                name,
-                company_name: companyName
-            }),
-        });
+            });
 
-        if (!response.ok) {
-            const error = await response.json();
-            throw new Error(error.detail || "Registration failed");
+            if (error) throw error;
+            return data;
+        } catch (error) {
+            console.error("Login error:", error);
+            throw error;
         }
-
-        const data = await response.json();
-
-        // Auto-login after registration
-        localStorage.setItem("token", data.access_token);
-        localStorage.setItem("user", JSON.stringify(data.user));
-
-        setToken(data.access_token);
-        setUser(data.user);
-
-        return data;
     };
 
-    const logout = () => {
-        localStorage.removeItem("token");
-        localStorage.removeItem("user");
-        setToken(null);
-        setUser(null);
-        router.push("/login");
+    const register = async (email, password, name, companyName, phone, address) => {
+        try {
+            // 1. Sign up the user
+            const { data, error } = await supabase.auth.signUp({
+                email,
+                password,
+                options: {
+                    data: {
+                        full_name: name,
+                        company_name: companyName,
+                        phone: phone,
+                        address: address,
+                    },
+                },
+            });
+
+            if (error) throw error;
+
+            return data;
+        } catch (error) {
+            console.error("Registration error:", error);
+            throw error;
+        }
     };
 
-    const getAuthHeaders = () => {
-        if (!token) return {};
-        return { Authorization: `Bearer ${token}` };
+    const logout = async () => {
+        try {
+            const { error } = await supabase.auth.signOut();
+            if (error) throw error;
+            router.push("/login");
+        } catch (error) {
+            console.error("Logout error:", error);
+            toast.error("Error signing out");
+        }
     };
 
     const value = {
         user,
-        token,
-        loading,
+        session,
         login,
         register,
         logout,
-        getAuthHeaders,
-        isAuthenticated: !!token,
+        loading,
     };
 
     return (
         <AuthContext.Provider value={value}>
-            {children}
+            {!loading && children}
         </AuthContext.Provider>
     );
 }

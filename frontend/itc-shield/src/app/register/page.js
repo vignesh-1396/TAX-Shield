@@ -3,253 +3,182 @@ import { useState } from "react";
 import { useAuth } from "../context/AuthContext";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { Shield, Mail, Lock, User, Building, Loader2 } from "lucide-react";
+import Button from "@/components/ui/Button";
+import Input from "@/components/ui/Input";
+import toast from "react-hot-toast";
 
 export default function RegisterPage() {
-    const [formData, setFormData] = useState({
-        name: "",
-        email: "",
-        password: "",
-        confirmPassword: "",
-        companyName: "",
-    });
-    const [error, setError] = useState("");
-    const [loading, setLoading] = useState(false);
-    const { register } = useAuth();
-    const router = useRouter();
+  const [name, setName] = useState("");
+  const [companyName, setCompanyName] = useState("");
+  const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
+  const [address, setAddress] = useState("");
+  const [password, setPassword] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const { register } = useAuth();
+  const router = useRouter();
 
-    const handleChange = (e) => {
-        setFormData({ ...formData, [e.target.name]: e.target.value });
-    };
+  const isBusinessEmail = (email) => {
+    const domain = email.split('@')[1];
+    const genericDomains = ['gmail.com', 'yahoo.com', 'hotmail.com', 'outlook.com', 'aol.com', 'icloud.com'];
+    if (email === 'vigneshiba132696@gmail.com') return true;
+    if (genericDomains.includes(domain)) return false;
+    return true;
+  };
 
-    const handleSubmit = async (e) => {
-        e.preventDefault();
-        setError("");
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setIsLoading(true);
 
-        if (formData.password !== formData.confirmPassword) {
-            setError("Passwords do not match");
-            return;
-        }
+    if (!isBusinessEmail(email)) {
+      toast.error("Please use a business email (e.g. name@company.com). Generic emails like Gmail are not allowed.");
+      setIsLoading(false);
+      return;
+    }
 
-        if (formData.password.length < 6) {
-            setError("Password must be at least 6 characters");
-            return;
-        }
+    try {
+      await register(email, password, name, companyName, phone, address);
+      toast.success("Account created successfully!");
+      router.push("/");
+    } catch (error) {
+      toast.error(error.message || "Registration failed");
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
-        setLoading(true);
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4 py-12">
+      <div className="w-full max-w-md">
+        {/* Logo */}
+        <div className="text-center mb-8">
+          <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-600 rounded-xl mb-4">
+            <Shield className="w-10 h-10 text-white" />
+          </div>
+          <h1 className="text-2xl font-semibold text-gray-900">ITC Shield</h1>
+          <p className="mt-2 text-sm text-gray-600">Create your account</p>
+        </div>
 
-        try {
-            await register(
-                formData.email,
-                formData.password,
-                formData.name,
-                formData.companyName
-            );
-            router.push("/");
-        } catch (err) {
-            setError(err.message);
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    return (
-        <main className="auth-container">
-            <div className="auth-card">
-                <div className="auth-header">
-                    <h1>🛡️ TaxPay Guard</h1>
-                    <h2>Create Account</h2>
-                    <p>Start protecting your ITC claims</p>
-                </div>
-
-                <form onSubmit={handleSubmit} className="auth-form">
-                    {error && <div className="error-message">❌ {error}</div>}
-
-                    <div className="form-group">
-                        <label>Full Name</label>
-                        <input
-                            type="text"
-                            name="name"
-                            value={formData.name}
-                            onChange={handleChange}
-                            placeholder="John Doe"
-                            required
-                        />
-                    </div>
-
-                    <div className="form-group">
-                        <label>Company Name (Optional)</label>
-                        <input
-                            type="text"
-                            name="companyName"
-                            value={formData.companyName}
-                            onChange={handleChange}
-                            placeholder="Acme Corp Pvt Ltd"
-                        />
-                    </div>
-
-                    <div className="form-group">
-                        <label>Email</label>
-                        <input
-                            type="email"
-                            name="email"
-                            value={formData.email}
-                            onChange={handleChange}
-                            placeholder="you@company.com"
-                            required
-                        />
-                    </div>
-
-                    <div className="form-row">
-                        <div className="form-group">
-                            <label>Password</label>
-                            <input
-                                type="password"
-                                name="password"
-                                value={formData.password}
-                                onChange={handleChange}
-                                placeholder="••••••••"
-                                required
-                            />
-                        </div>
-                        <div className="form-group">
-                            <label>Confirm</label>
-                            <input
-                                type="password"
-                                name="confirmPassword"
-                                value={formData.confirmPassword}
-                                onChange={handleChange}
-                                placeholder="••••••••"
-                                required
-                            />
-                        </div>
-                    </div>
-
-                    <button type="submit" className="btn btn-primary" disabled={loading}>
-                        {loading ? "Creating Account..." : "Create Account"}
-                    </button>
-                </form>
-
-                <div className="auth-footer">
-                    <p>
-                        Already have an account?{" "}
-                        <Link href="/login">Sign in</Link>
-                    </p>
-                </div>
+        {/* Form Card */}
+        <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-8">
+          <form onSubmit={handleSubmit} className="space-y-5">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Full name
+              </label>
+              <div className="relative">
+                <User className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                <Input
+                  type="text"
+                  required
+                  className="pl-10"
+                  placeholder="John Doe"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                />
+              </div>
             </div>
 
-            <style jsx>{`
-        .auth-container {
-          min-height: 100vh;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          padding: 2rem;
-          background: linear-gradient(135deg, #0f172a 0%, #1e3a5f 100%);
-        }
-        .auth-card {
-          background: rgba(15, 23, 42, 0.9);
-          border: 1px solid rgba(59, 130, 246, 0.3);
-          border-radius: 16px;
-          padding: 2.5rem;
-          width: 100%;
-          max-width: 480px;
-          box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
-        }
-        .auth-header {
-          text-align: center;
-          margin-bottom: 2rem;
-        }
-        .auth-header h1 {
-          font-size: 1.75rem;
-          margin-bottom: 0.5rem;
-          background: linear-gradient(135deg, #60a5fa, #3b82f6);
-          -webkit-background-clip: text;
-          -webkit-text-fill-color: transparent;
-        }
-        .auth-header h2 {
-          font-size: 1.5rem;
-          font-weight: 600;
-          margin-bottom: 0.25rem;
-        }
-        .auth-header p {
-          color: #94a3b8;
-        }
-        .auth-form {
-          display: flex;
-          flex-direction: column;
-          gap: 1rem;
-        }
-        .form-row {
-          display: grid;
-          grid-template-columns: 1fr 1fr;
-          gap: 1rem;
-        }
-        .form-group {
-          display: flex;
-          flex-direction: column;
-          gap: 0.5rem;
-        }
-        .form-group label {
-          font-size: 0.875rem;
-          font-weight: 500;
-        }
-        .form-group input {
-          padding: 0.75rem 1rem;
-          border-radius: 8px;
-          border: 1px solid rgba(59, 130, 246, 0.3);
-          background: rgba(30, 64, 175, 0.1);
-          color: white;
-          font-size: 1rem;
-        }
-        .form-group input:focus {
-          outline: none;
-          border-color: #3b82f6;
-          box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
-        }
-        .btn-primary {
-          padding: 0.875rem;
-          background: linear-gradient(135deg, #1e40af, #3b82f6);
-          border: none;
-          border-radius: 8px;
-          color: white;
-          font-weight: 600;
-          font-size: 1rem;
-          cursor: pointer;
-          transition: all 0.3s ease;
-          margin-top: 0.5rem;
-        }
-        .btn-primary:hover {
-          transform: translateY(-2px);
-          box-shadow: 0 10px 30px rgba(59, 130, 246, 0.3);
-        }
-        .btn-primary:disabled {
-          opacity: 0.7;
-          cursor: not-allowed;
-          transform: none;
-        }
-        .error-message {
-          background: rgba(239, 68, 68, 0.1);
-          border: 1px solid rgba(239, 68, 68, 0.3);
-          padding: 0.75rem;
-          border-radius: 8px;
-          color: #f87171;
-          text-align: center;
-        }
-        .auth-footer {
-          text-align: center;
-          margin-top: 1.5rem;
-          padding-top: 1.5rem;
-          border-top: 1px solid rgba(59, 130, 246, 0.2);
-        }
-        .auth-footer a {
-          color: #60a5fa;
-          text-decoration: none;
-          font-weight: 500;
-        }
-        .auth-footer a:hover {
-          text-decoration: underline;
-        }
-      `}</style>
-        </main>
-    );
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Company name
+              </label>
+              <div className="relative">
+                <Building className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                <Input
+                  type="text"
+                  required
+                  className="pl-10"
+                  placeholder="Acme Corp"
+                  value={companyName}
+                  onChange={(e) => setCompanyName(e.target.value)}
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Phone Number
+              </label>
+              <div className="relative">
+                <Building className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                <Input
+                  type="tel"
+                  required
+                  className="pl-10"
+                  placeholder="+91 98765 43210"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Address
+              </label>
+              <div className="relative">
+                <Building className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                <Input
+                  type="text"
+                  required
+                  className="pl-10"
+                  placeholder="123 Business St, City"
+                  value={address}
+                  onChange={(e) => setAddress(e.target.value)}
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Email address
+              </label>
+              <div className="relative">
+                <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                <Input
+                  type="email"
+                  required
+                  className="pl-10"
+                  placeholder="name@company.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Password
+              </label>
+              <div className="relative">
+                <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                <Input
+                  type="password"
+                  required
+                  className="pl-10"
+                  placeholder="••••••••"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  minLength={8}
+                />
+              </div>
+            </div>
+
+            <Button type="submit" className="w-full" isLoading={isLoading}>
+              Create account
+            </Button>
+          </form>
+
+          <div className="mt-6 text-center text-sm text-gray-600">
+            Already have an account?{" "}
+            <Link href="/login" className="font-medium text-blue-600 hover:text-blue-500">
+              Sign in
+            </Link>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 }

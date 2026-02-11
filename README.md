@@ -137,6 +137,27 @@ Open http://localhost:3000 and click any test scenario.
 - [ ] PDF Certificates
 - [ ] User Authentication
 
+
+---
+
+## 🏃‍♂️ Portable Usage (External Drive)
+
+This project is configured to run directly from an external drive on both macOS and Windows.
+
+### Prerequisites
+1.  **Python 3.10+**
+2.  **Node.js 18+**
+
+### 🍎 On macOS
+1.  Open Terminal.
+2.  Drag `start_mac.sh` into the terminal and press Enter.
+3.  The Backend and Frontend will start automatically.
+
+### 🪟 On Windows
+1.  Double-click `start_win.bat`.
+2.  Two command windows will open (one for Backend, one for Frontend).
+3.  **For Tally:** Use `tally_plugin/TaxPayGuard_Local.TDL`. This file is pre-configured to connect to your local backend.
+
 ---
 
 ## 📄 License

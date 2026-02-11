@@ -80,14 +80,16 @@ def update_batch_job_progress(job_id: str, processed: int, success: int, failed:
 
 
 def update_batch_item(item_id: int, status: str, decision: str = None, 
-                      check_id: int = None, error_message: str = None):
+                      check_id: int = None, error_message: str = None,
+                      risk_level: str = None, reason: str = None):
     """Update a batch item after processing"""
     with get_connection() as (conn, cursor):
         cursor.execute(f"""
             UPDATE batch_items 
-            SET status = {ph()}, decision = {ph()}, check_id = {ph()}, error_message = {ph()}
+            SET status = {ph()}, decision = {ph()}, check_id = {ph()}, 
+                error_message = {ph()}, risk_level = {ph()}, reason = {ph()}
             WHERE id = {ph()}
-        """, (status, decision, check_id, error_message, item_id))
+        """, (status, decision, check_id, error_message, risk_level, reason, item_id))
         
         conn.commit()
 

@@ -47,10 +47,19 @@ def process_batch_sync(job_id: str) -> Dict:
     certs_dir = os.path.join(batch_dir, "certificates")
     os.makedirs(certs_dir, exist_ok=True)
     
+    # Instantiate provider once for the entire batch to reuse token
+    provider = get_gsp_provider()
+    import time
+    
     for item in items:
         try:
-            provider = get_gsp_provider()
+            # Reuse the same provider instance (uses cached token)
             vendor_data = provider.get_vendor_data(item['gstin'])
+            
+            # If provider fails to get data (e.g. API error), use fallback or error out
+            if not vendor_data:
+                raise Exception("Failed to fetch vendor data from GSP")
+
             decision_result = engine.check_vendor(vendor_data)
             
             check_id = check_crud.save_compliance_check(
@@ -86,9 +95,14 @@ def process_batch_sync(job_id: str) -> Dict:
                 item_id=item['id'],
                 status="SUCCESS",
                 decision=decision_result['decision'],
-                check_id=check_id
+                check_id=check_id,
+                risk_level=decision_result['risk_level'],
+                reason=decision_result['reason']
             )
             success += 1
+            
+            # Rate limiting: sleep 100ms
+            time.sleep(0.1)
             
         except Exception as e:
             batch_crud.update_batch_item(
@@ -101,11 +115,38 @@ def process_batch_sync(job_id: str) -> Dict:
         processed += 1
         batch_crud.update_batch_job_progress(job_id, processed, success, failed)
     
+    # Generate Results CSV
+    import csv
+    results_csv_path = os.path.join(batch_dir, "results.csv")
+    
+    # Get all batch items with results
+    all_items = batch_crud.get_batch_items(job_id, status=None)  # Get all items regardless of status
+    
+    with open(results_csv_path, 'w', newline='', encoding='utf-8') as csvfile:
+        fieldnames = ['gstin', 'party_name', 'amount', 'status', 'decision', 'risk_level', 'reason']
+        writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+        
+        writer.writeheader()
+        for item in all_items:
+            writer.writerow({
+                'gstin': item.get('gstin', ''),
+                'party_name': item.get('vendor_name', ''),
+                'amount': item.get('amount', 0),
+                'status': 'SUCCESS' if item.get('status') == 'SUCCESS' else 'FAILED',
+                'decision': item.get('decision', 'N/A'),
+                'risk_level': item.get('risk_level', 'N/A'),
+                'reason': item.get('error_message', '') if item.get('status') == 'FAILED' else item.get('reason', 'N/A')
+            })
+    
     # Create ZIP
     zip_filename = f"TaxPayGuard_Batch_{datetime.now().strftime('%Y%m%d_%H%M%S')}.zip"
     zip_path = os.path.join(batch_dir, zip_filename)
     
     with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
+        # Add results CSV
+        zipf.write(results_csv_path, "results.csv")
+        
+        # Add certificates
         for cert_file in os.listdir(certs_dir):
             cp = os.path.join(certs_dir, cert_file)
             zipf.write(cp, f"certificates/{cert_file}")

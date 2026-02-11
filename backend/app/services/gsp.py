@@ -131,10 +131,17 @@ class SandboxGSPProvider(BaseGSPProvider):
     def __init__(self, client_id: str, secret: str):
         self.client_id = client_id
         self.secret = secret
+        self.access_token = None
+        self.token_expiry = None
 
     def _get_access_token(self) -> Optional[str]:
-        """Authenticate and get access token."""
+        """Authenticate and get access token with caching."""
         try:
+            # Return cached token if valid (buffer of 5 minutes)
+            if self.access_token and self.token_expiry:
+                if datetime.now() < (self.token_expiry - timedelta(minutes=5)):
+                    return self.access_token
+            
             auth_url = f"{self.BASE_URL}/authenticate"
             headers = {
                 "x-api-key": self.client_id,
@@ -142,12 +149,141 @@ class SandboxGSPProvider(BaseGSPProvider):
                 "x-api-version": "1.0",
                 "Content-Type": "application/json"
             }
+            logger.info(f"Authenticating with GSP API at {auth_url}")
             response = requests.post(auth_url, headers=headers, timeout=10)
             response.raise_for_status()
-            return response.json().get("access_token")
+            auth_data = response.json()
+            logger.info(f"GSP Authentication Success. Token obtained.")
+            
+            self.access_token = auth_data.get("access_token")
+            # Assume 1 hour validity if not provided, or parse from response if available
+            # Sandbox typically returns 'expires_in' (seconds)
+            expires_in = auth_data.get("expires_in", 3600) 
+            self.token_expiry = datetime.now() + timedelta(seconds=int(expires_in))
+            
+            return self.access_token
         except Exception as e:
             logger.error(f"GSP Authentication Failed: {str(e)}")
             return None
+
+    def get_filing_history(self, gstin: str, months: int = 3) -> List[Dict]:
+        """
+        Fetch GSTR-3B, GSTR-1, and IFF filing history for a vendor.
+        
+        Args:
+            gstin: Vendor's GSTIN
+            months: Number of months to analyze (default 3)
+            
+        Returns:
+            List of filing records with period, filed_date, status, delay
+        """
+        try:
+            # Step 1: Get access token
+            token = self._get_access_token()
+            if not token:
+                logger.error("Failed to get access token for filing history")
+                return []
+            
+            # Step 2: Call Track GST Returns API
+            headers = {
+                "authorization": token,
+                "x-api-key": self.client_id,
+                "x-api-version": "1.0.0",
+                "Content-Type": "application/json",
+                "Accept": "application/json"
+            }
+            
+            track_url = f"{self.BASE_URL}/gst/compliance/public/gstrs/track"
+            
+            # Get current financial year (Apr-Mar format)
+            # For example: if current date is Feb 2026, FY is 2025-26
+            from datetime import datetime
+            current_date = datetime.now()
+            if current_date.month >= 4:  # April or later
+                fy_start = current_date.year
+            else:  # Jan-Mar
+                fy_start = current_date.year - 1
+            financial_year = f"{fy_start}-{str(fy_start + 1)[-2:]}"  # e.g., "2025-26"
+            
+            # Add financial_year as query parameter
+            track_url_with_params = f"{track_url}?financial_year={financial_year}"
+            payload = {"gstin": gstin}
+            
+            logger.info(f"Fetching filing history for GSTIN: {gstin}, FY: {financial_year}")
+            print(f"=== Track GST Returns Request ===")
+            print(f"URL: {track_url_with_params}")
+            print(f"Payload: {payload}")
+            print(f"=================================")
+            response = requests.post(track_url_with_params, json=payload, headers=headers, timeout=10)
+            response.raise_for_status()
+            response_json = response.json()
+            
+            print(f"=== Filing History API Response ===")
+            print(f"Response: {response_json}")
+            print(f"===================================")
+            logger.info(f"Filing History API Response: {response_json}")
+            
+            # Step 3: Extract nested data (same structure as GSTIN search)
+            outer_data = response_json.get("data", {})
+            inner_data = outer_data.get("data", {}) if isinstance(outer_data, dict) else {}
+            filed_list = inner_data.get("EFiledlist", [])
+            
+            if not filed_list:
+                logger.warning(f"No filing history found for GSTIN: {gstin}")
+                return []
+            
+            # Step 4: Process and format filing records
+            filing_records = []
+            
+            for record in filed_list:
+                rtn_type = record.get("rtntype", "")
+                
+                # Only include GSTR-3B, GSTR-1, and IFF
+                if rtn_type not in ["GSTR3B", "GSTR1", "IFF"]:
+                    continue
+                
+                # Parse return period (MMYYYY format)
+                ret_period = record.get("ret_prd", "")
+                if len(ret_period) == 6:
+                    month = ret_period[:2]
+                    year = ret_period[2:]
+                    period_display = f"{month}/{year}"
+                else:
+                    period_display = ret_period
+                
+                # Get filing details
+                filed_date = record.get("dof", "N/A")
+                status = record.get("status", "Unknown")
+                
+                # Determine delay status (simplified - can be enhanced later)
+                delay = "On Time" if status == "Filed" else "Late"
+                
+                filing_records.append({
+                    "period": period_display,
+                    "filed_date": filed_date,
+                    "status": status,
+                    "delay": delay,
+                    "return_type": rtn_type
+                })
+            
+            # Sort by period (most recent first) and limit to requested months
+            filing_records.sort(key=lambda x: x["period"], reverse=True)
+            
+            # Return up to months * 2 records (GSTR-1 + GSTR-3B per month)
+            return filing_records[:months * 2]
+            
+        except requests.exceptions.HTTPError as e:
+            # Log the actual error response for debugging
+            error_response = e.response.text if hasattr(e.response, 'text') else str(e)
+            logger.error(f"HTTP Error fetching filing history: Status {e.response.status_code}, Response: {error_response}")
+            print(f"=== Filing History API Error ===")
+            print(f"Status Code: {e.response.status_code}")
+            print(f"Response: {error_response}")
+            print(f"================================")
+            return []
+        except Exception as e:
+            logger.error(f"Error fetching filing history from Sandbox GSP: {str(e)}")
+            return []
 
     def get_vendor_data(self, gstin: str) -> Optional[Dict]:
         """Fetch real data from Sandbox.co.in"""
@@ -159,17 +295,19 @@ class SandboxGSPProvider(BaseGSPProvider):
                 return None
 
             headers = {
-                "Authorization": f"Bearer {token}",
+                "authorization": token,  # No "Bearer" prefix per Sandbox docs
                 "x-api-key": self.client_id,
-                "x-api-version": "1.0",
+                "x-api-version": "1.0.0",
+                "Content-Type": "application/json",
                 "Accept": "application/json"
             }
             
             # Step 2: Get GST details using verified endpoint
-            # Endpoint: /gst/compliance/public/gstin/search?gstin={gstin}
-            gst_url = f"{self.BASE_URL}/gst/compliance/public/gstin/search?gstin={gstin}"
+            # Endpoint: POST /gst/compliance/public/gstin/search
+            gst_url = f"{self.BASE_URL}/gst/compliance/public/gstin/search"
+            payload = {"gstin": gstin}
             
-            response = requests.get(gst_url, headers=headers, timeout=10)
+            response = requests.post(gst_url, json=payload, headers=headers, timeout=10)
             
             # Handle 403 specifically to warn user
             if response.status_code == 403:
@@ -177,32 +315,48 @@ class SandboxGSPProvider(BaseGSPProvider):
                 # Return a special mock indicating permission issue? 
                 # Or just None for now.
                 return None
-                
+            
             response.raise_for_status()
-            data = response.json().get("data", {})
-
+            response_json = response.json()
+            
+            # Log the full response for debugging
+            print(f"=== GSP API Full Response ===")
+            print(f"Response: {response_json}")
+            print(f"=============================")
+            logger.info(f"GSP API Response: {response_json}")
+            
+            # Sandbox API has nested data structure: response.data.data
+            outer_data = response_json.get("data", {})
+            
+            if not outer_data:
+                logger.warning(f"No outer data returned from GSP for GSTIN: {gstin}")
+                return None
+            
+            # The actual GSTIN details are in the nested 'data' field
+            # Structure: {"code": 200, "data": {"data": {...actual fields...}}}
+            inner_data = outer_data.get("data", {}) if isinstance(outer_data, dict) else {}
+            
+            # If inner_data is empty, try using outer_data directly (fallback)
+            data = inner_data if inner_data else outer_data
+            
             if not data:
+                logger.warning(f"No inner data returned from GSP for GSTIN: {gstin}")
                 return None
 
-            # Note: The response structure might differ for this endpoint.
-            # Assuming standard Zoop structure for now, but in reality 
-            # we might need to map fields properly once we see successful response.
-            # Since we only saw 403, we keep mapping logic generic.
-
-            # Step 3: Get Filing History (if available via similar endpoint)
-            filing_data = []
-            # We skip filing history fetch until basic search works to avoid extra errors.
+            # Step 3: Get Filing History from Track GST Returns API
+            filing_data = self.get_filing_history(gstin, months=3)
+            logger.info(f"Retrieved {len(filing_data)} filing records for GSTIN: {gstin}")
 
             # Map to our internal schema
             return {
                 "gstin": gstin,
-                "gst_status": data.get("sts", "Active"), # Default to Active if found
-                "registration_date": data.get("rgdt"),
-                "legal_name": data.get("lgnm"),
-                "trade_name": data.get("tradeNam") or data.get("lgnm"),
+                "gst_status": data.get("sts") or data.get("status") or "Active",
+                "registration_date": data.get("rgdt") or data.get("registration_date") or "N/A",
+                "legal_name": data.get("lgnm") or data.get("legal_name") or "Unknown",
+                "trade_name": data.get("tradeNam") or data.get("trade_name") or data.get("lgnm") or "Unknown",
                 "filing_history": filing_data,
                 "last_updated": datetime.now().isoformat(),
-                "source": "REAL_GSP_SANDBOX"
+                "source": "GSP_LIVE"
             }
         except Exception as e:
             logger.error(f"Error fetching data from Sandbox GSP: {str(e)}")

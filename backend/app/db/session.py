@@ -185,7 +185,9 @@ def _init_postgres_tables():
                 decision TEXT,
                 check_id INTEGER REFERENCES compliance_checks(id),
                 status TEXT DEFAULT 'PENDING',
-                error_message TEXT
+                error_message TEXT,
+                risk_level TEXT,
+                reason TEXT
             )
         """)
         
@@ -279,6 +281,8 @@ def _init_sqlite_tables():
                 check_id INTEGER,
                 status TEXT DEFAULT 'PENDING',
                 error_message TEXT,
+                risk_level TEXT,
+                reason TEXT,
                 FOREIGN KEY (batch_id) REFERENCES batch_jobs(id),
                 FOREIGN KEY (check_id) REFERENCES compliance_checks(id)
             )

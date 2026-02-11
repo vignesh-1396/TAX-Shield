@@ -1,0 +1,164 @@
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; TaxPay Guard - Tally TDL Compliance Plugin (LOCAL / PORTABLE)
+;; Version: 1.0.0-LOCAL
+;; Compatible: Tally Prime, Tally ERP 9
+;; 
+;; INSTALLATION:
+;; 1. Load this file in Tally (F1 > TDLs & Add-ons > Manage Local TDLs)
+;; 2. Ensure the backend is running via start_win.bat (http://localhost:8000)
+;;
+;; WORKFLOW:
+;; Payment Voucher Save → Extract GSTIN → HTTP POST to Localhost → Block/Warn/Allow
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+[System: Variable]
+    ;; Configuration - Pre-configured for Localhost
+    TPG API URL : "http://localhost:8000/api/v1/tally/check"
+    TPG Ping URL : "http://localhost:8000/api/v1/tally/ping"
+    
+    ;; Variables for storing response
+    TPG Decision : ""
+    TPG Message : ""
+    TPG Can Proceed : ""
+    TPG Vendor GSTIN : ""
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; FUNCTION: Extract GSTIN from Party Ledger
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+[Function: TPG Get Party GSTIN]
+    ;; Get the party ledger name from the voucher
+    Variable : PartyLedger : String
+    Variable : PartyGSTIN : String
+    
+    ;; Extract from current voucher
+    SET : PartyLedger : $PartyLedgerName
+    
+    ;; Get GSTIN from ledger master
+    SET : PartyGSTIN : $$LedgerGSTIN:##PartyLedger
+    
+    RETURN : PartyGSTIN
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; FUNCTION: Make HTTP POST Request to TaxPay Guard API
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+[Function: TPG Check Compliance]
+    Parameter : pGSTIN : String
+    Parameter : pAmount : Number
+    Parameter : pPartyName : String
+    
+    Variable : RequestBody : String
+    Variable : ResponseText : String
+    Variable : HTTPResult : Logical
+    
+    ;; Build JSON request body
+    SET : RequestBody : "{\"gstin\": \"" + $$String:##pGSTIN + "\", \"amount\": " + $$String:##pAmount + ", \"party_name\": \"" + $$String:##pPartyName + "\", \"voucher_type\": \"Payment\"}"
+    
+    ;; Make HTTP POST request
+    HTTP POST
+        URL : ##TPG API URL
+        Headers : "Content-Type: application/json"
+        Body : ##RequestBody
+        Response : ResponseText
+        Result : HTTPResult
+    END HTTP
+    
+    ;; Parse JSON response
+    IF : ##HTTPResult
+        ;; Extract decision from response
+        SET : TPG Decision : $$JSONValue:##ResponseText:"decision"
+        SET : TPG Message : $$JSONValue:##ResponseText:"message"
+        SET : TPG Can Proceed : $$JSONValue:##ResponseText:"can_proceed"
+    ELSE
+        ;; On network error, allow with warning
+        SET : TPG Decision : "HOLD"
+        SET : TPG Message : "Unable to connect to Local Server. Ensure start_win.bat is running."
+        SET : TPG Can Proceed : "true"
+    END IF
+    
+    RETURN : ##TPG Decision
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; FORM OVERRIDE: Intercept Payment Voucher Save
+;; This is the core gatekeeper logic
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+[#Form: Voucher]
+    ;; Override the Accept (Ctrl+A) button behavior
+    [On: Form Accept]
+        ;; Only check for Payment vouchers
+        IF : ($VoucherTypeName = "Payment")
+            
+            ;; Get party GSTIN
+            SET : TPG Vendor GSTIN : $$TPG Get Party GSTIN
+            
+            ;; Skip if no GSTIN found
+            IF : NOT $$IsEmpty:##TPG Vendor GSTIN
+                
+                ;; Call TaxPay Guard API
+                CALL : TPG Check Compliance : ##TPG Vendor GSTIN : $Amount : $PartyLedgerName
+                
+                ;; Decision Logic
+                CASE : ##TPG Decision
+                    
+                    ;; STOP: Block payment - Hard stop
+                    ["STOP"]
+                        MSGBOX : "TaxPay Guard Alert" : ##TPG Message : 0
+                        CANCEL    ;; Prevent voucher save
+                        
+                    ;; HOLD: Warning - Allow with CFO review message
+                    ["HOLD"]
+                        MSGBOX : "TaxPay Guard Warning" : ##TPG Message + @@NewLine + @@NewLine + "Proceed with payment?" : 4
+                        IF : ($$LastResult = 6)  ;; User clicked Yes
+                            ACCEPT
+                        ELSE
+                            CANCEL
+                        END IF
+                        
+                    ;; RELEASE: Safe to proceed
+                    ["RELEASE"]
+                        ;; Optional: Show brief confirmation
+                        ;; MSGBOX : "TaxPay Guard" : "✅ Vendor Compliant" : 0
+                        ACCEPT
+                        
+                    ;; Default: Allow with warning
+                    [OTHERWISE]
+                        ACCEPT
+                        
+                END CASE
+                
+            ELSE
+                ;; No GSTIN - Allow but warn user
+                MSGBOX : "TaxPay Guard" : "No GSTIN found for this vendor. Manual verification recommended." : 48
+                ACCEPT
+            END IF
+            
+        ELSE
+            ;; Non-payment vouchers - Allow normally
+            ACCEPT
+        END IF
+    END [On: Form Accept]
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; MENU EXTENSION: Add TaxPay Guard settings to Gateway of Tally
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+[#Menu: Gateway of Tally]
+    Add : Item : TPG Settings : F : TPG Open Settings
+
+[Function: TPG Open Settings]
+    MSGBOX : "TaxPay Guard Settings (Local)" : "API URL: " + ##TPG API URL + @@NewLine + @@NewLine + "Running in Portable Mode." : 0
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; STARTUP: Test API connectivity
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+[On: System Start]
+    Variable : PingResult : String
+    Variable : PingStatus : Logical
+    
+    HTTP GET
+        URL : ##TPG Ping URL
+        Response : PingResult
+        Result : PingStatus
+    END HTTP
+    
+    IF : NOT ##PingStatus
+        LOG : "TaxPay Guard: Unable to connect to Local API. Please run start_win.bat"
+    END IF

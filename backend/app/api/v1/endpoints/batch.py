@@ -13,7 +13,7 @@ MAX_VENDORS_PER_BATCH = 500
 @router.post("/upload")
 async def upload_batch(
     file: UploadFile = File(...),
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = None  # Made optional for MVP
 ):
     """Upload a CSV for batch processing."""
     if not file.filename.endswith('.csv'):
@@ -35,7 +35,8 @@ async def upload_batch(
     if len(items) > MAX_VENDORS_PER_BATCH:
         raise HTTPException(status_code=400, detail=f"Maximum {MAX_VENDORS_PER_BATCH} vendors allowed")
     
-    result = batch_service.create_batch(items, file.filename, user_id=current_user.get("id"))
+    result = batch_service.create_batch(items, file.filename, user_id=current_user.get("id") if current_user else None)
+
     
     if len(items) <= 100:
         process_result = batch_service.process_batch_sync(result['job_id'])
@@ -44,7 +45,7 @@ async def upload_batch(
     return {**result, "message": "Batch created and queued", "parse_errors": errors[:5]}
 
 @router.get("/status/{job_id}")
-async def get_job_status(job_id: str, current_user: dict = Depends(get_current_user)):
+async def get_job_status(job_id: str, current_user: dict = None):
     """Get batch job status."""
     status = batch_service.get_batch_status(job_id)
     if not status:
@@ -52,7 +53,7 @@ async def get_job_status(job_id: str, current_user: dict = Depends(get_current_u
     return status
 
 @router.get("/download/{job_id}")
-async def download_batch_result(job_id: str, current_user: dict = Depends(get_current_user)):
+async def download_batch_result(job_id: str, current_user: dict = None):
     """Download batch ZIP result."""
     status = batch_service.get_batch_status(job_id)
     if not status or status['status'] != 'COMPLETED':
