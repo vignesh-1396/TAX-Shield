@@ -109,7 +109,32 @@ def check_rule_37(invoice_date, payment_date=None):
 
 ---
 
-## 📅 Roadmap for Execution
+## � Security & Data Privacy (Critical)
+
+Handling OTPs and GSTR-2B data requires **Banking-Grade Security**.
+
+### 1. Zero-Storage for OTP
+*   **Protocol:** We acting as a "Tunnel".
+*   User enters OTP -> We send to GSP -> GSP gives Token.
+*   **Policy:** We **NEVER** store the raw OTP in our database or logs.
+
+### 2. Token Encryption (AES-256)
+The `auth_token` in `gst_credentials` table grants access to user's tax data.
+*   **Encryption:** The `auth_token` column must be **Encrypted at Rest** using AES-256.
+*   **Key Management:** Decryption Text should be stored in Environment Variables (`GST_TOKEN_SECRET`), not in code.
+
+### 3. Strict Access Control (Row Level Security)
+*   **Risk:** User A seeing User B's invoices.
+*   **Mitigation:** Every query to `gstr_2b_data` must strictly filter by `user_id`.
+*   **Middleware:** Implement `RequireGSTScope` middleware that validates user ownership before fetching 2B data.
+
+### 4. Data Retention Policy
+*   GSTR-2B data is sensitive financial info.
+*   **Policy:** We verify the data, store it for the active compliance period (e.g., FY + 6 years), and provide a "Delete My Data" button for users.
+
+---
+
+## �📅 Roadmap for Execution
 
 ### Phase 2.1: TDL Data Upgrade (Week 1)
 *   [ ] Modify TDL to extract `VoucherDate`, `ReferenceDate` (Invoice Date), and `ReferenceNo` (Invoice No).
