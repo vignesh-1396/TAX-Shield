@@ -130,7 +130,7 @@ The `auth_token` in `gst_credentials` table grants access to user's tax data.
 
 ### 4. Data Retention Policy
 *   GSTR-2B data is sensitive financial info.
-*   **Policy:** We verify the data, store it for the active compliance period (e.g., FY + 6 years), and provide a "Delete My Data" button for users.
+*   **Policy:** We verify the data and store it for the active compliance period (e.g., FY + 6 years) to ensure audit trails for our users.
 
 ---
 
