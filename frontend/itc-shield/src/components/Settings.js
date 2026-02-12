@@ -7,6 +7,7 @@ import { Save, User, Bell, Settings as SettingsIcon, Building, Phone, MapPin } f
 import toast from "react-hot-toast";
 import { useAuth } from "@/app/context/AuthContext";
 import { supabase } from "@/lib/supabase";
+import ConnectGST from "@/components/ConnectGST";
 
 const DEFAULT_SETTINGS = {
     profile: {
@@ -373,6 +374,9 @@ export default function Settings() {
                     </div>
                 </CardContent>
             </Card>
+
+            {/* GSTR-2B Integration */}
+            <ConnectGST />
         </div>
     );
 }
