@@ -295,6 +295,258 @@ class SandboxGSPProvider(BaseGSPProvider):
             logger.error(f"Error fetching filing history from Sandbox GSP: {str(e)}")
             return []
 
+    def request_otp(self, gstin: str, username: str) -> Optional[Dict]:
+        """
+        Request OTP for GSTR-2B access.
+        
+        Args:
+            gstin: The GSTIN to connect
+            username: GST Portal username (usually GSTIN itself or email)
+            
+        Returns:
+            Dict with transaction_id if successful, None otherwise
+        """
+        try:
+            token = self._get_access_token()
+            if not token:
+                logger.error("Failed to obtain GSP access token for OTP request")
+                return None
+
+            headers = {
+                "authorization": token,
+                "x-api-key": self.client_id,
+                "x-api-version": "1.0.0",
+                "Content-Type": "application/json",
+                "Accept": "application/json"
+            }
+            
+            # OTP Request endpoint
+            otp_url = f"{self.BASE_URL}/gst/compliance/v2/returns/gstr2b/otp/request"
+            payload = {
+                "gstin": gstin,
+                "username": username
+            }
+            
+            logger.info(f"Requesting OTP for GSTIN: {gstin}")
+            response = requests.post(otp_url, json=payload, headers=headers, timeout=15)
+            response.raise_for_status()
+            response_json = response.json()
+            
+            logger.info(f"OTP Request Response: {response_json}")
+            
+            # Extract transaction ID from response
+            data = response_json.get("data", {})
+            txn_id = data.get("transaction_id") or data.get("txn_id")
+            
+            if txn_id:
+                return {
+                    "transaction_id": txn_id,
+                    "message": "OTP sent successfully",
+                    "gstin": gstin
+                }
+            else:
+                logger.error(f"No transaction ID in OTP response: {response_json}")
+                return None
+                
+        except requests.exceptions.HTTPError as e:
+            error_response = e.response.text if hasattr(e.response, 'text') else str(e)
+            logger.error(f"HTTP Error requesting OTP: Status {e.response.status_code}, Response: {error_response}")
+            return None
+        except Exception as e:
+            logger.error(f"Error requesting OTP: {str(e)}")
+            return None
+
+    def verify_otp(self, gstin: str, otp: str, transaction_id: str) -> Optional[Dict]:
+        """
+        Verify OTP and get auth token for GSTR-2B access.
+        
+        Args:
+            gstin: The GSTIN
+            otp: OTP received by user
+            transaction_id: Transaction ID from request_otp
+            
+        Returns:
+            Dict with auth_token and expiry if successful, None otherwise
+        """
+        try:
+            token = self._get_access_token()
+            if not token:
+                logger.error("Failed to obtain GSP access token for OTP verification")
+                return None
+
+            headers = {
+                "authorization": token,
+                "x-api-key": self.client_id,
+                "x-api-version": "1.0.0",
+                "Content-Type": "application/json",
+                "Accept": "application/json"
+            }
+            
+            # OTP Verify endpoint
+            verify_url = f"{self.BASE_URL}/gst/compliance/v2/returns/gstr2b/otp/verify"
+            payload = {
+                "gstin": gstin,
+                "otp": otp,
+                "transaction_id": transaction_id
+            }
+            
+            logger.info(f"Verifying OTP for GSTIN: {gstin}")
+            response = requests.post(verify_url, json=payload, headers=headers, timeout=15)
+            response.raise_for_status()
+            response_json = response.json()
+            
+            logger.info(f"OTP Verify Response: {response_json}")
+            
+            # Extract auth token from response
+            data = response_json.get("data", {})
+            auth_token = data.get("auth_token") or data.get("token")
+            
+            if auth_token:
+                # Token typically valid for 6 hours
+                expiry = datetime.now() + timedelta(hours=6)
+                return {
+                    "auth_token": auth_token,
+                    "token_expiry": expiry.isoformat(),
+                    "gstin": gstin,
+                    "message": "OTP verified successfully"
+                }
+            else:
+                logger.error(f"No auth token in verify response: {response_json}")
+                return None
+                
+        except requests.exceptions.HTTPError as e:
+            error_response = e.response.text if hasattr(e.response, 'text') else str(e)
+            logger.error(f"HTTP Error verifying OTP: Status {e.response.status_code}, Response: {error_response}")
+            return None
+        except Exception as e:
+            logger.error(f"Error verifying OTP: {str(e)}")
+            return None
+
+    def fetch_gstr2b(self, gstin: str, return_period: str, auth_token: str) -> Optional[Dict]:
+        """
+        Fetch GSTR-2B data for a specific return period.
+        
+        Args:
+            gstin: The GSTIN
+            return_period: Period in MMYYYY format (e.g., "022026" for Feb 2026)
+            auth_token: Auth token from verify_otp
+            
+        Returns:
+            Dict with GSTR-2B invoice data if successful, None otherwise
+        """
+        try:
+            token = self._get_access_token()
+            if not token:
+                logger.error("Failed to obtain GSP access token for GSTR-2B fetch")
+                return None
+
+            headers = {
+                "authorization": token,
+                "x-api-key": self.client_id,
+                "x-api-version": "1.0.0",
+                "Content-Type": "application/json",
+                "Accept": "application/json"
+            }
+            
+            # GSTR-2B Fetch endpoint
+            gstr2b_url = f"{self.BASE_URL}/gst/compliance/v2/returns/gstr2b"
+            payload = {
+                "gstin": gstin,
+                "return_period": return_period,
+                "auth_token": auth_token
+            }
+            
+            logger.info(f"Fetching GSTR-2B for GSTIN: {gstin}, Period: {return_period}")
+            response = requests.post(gstr2b_url, json=payload, headers=headers, timeout=30)
+            response.raise_for_status()
+            response_json = response.json()
+            
+            logger.info(f"GSTR-2B Fetch successful for {gstin}")
+            
+            # Extract invoice data from response
+            data = response_json.get("data", {})
+            
+            # GSTR-2B structure typically has sections like B2B, B2BA, etc.
+            # We'll extract and normalize the invoice data
+            invoices = self._parse_gstr2b_invoices(data, gstin, return_period)
+            
+            return {
+                "gstin": gstin,
+                "return_period": return_period,
+                "invoices": invoices,
+                "total_invoices": len(invoices),
+                "fetched_at": datetime.now().isoformat()
+            }
+                
+        except requests.exceptions.HTTPError as e:
+            error_response = e.response.text if hasattr(e.response, 'text') else str(e)
+            logger.error(f"HTTP Error fetching GSTR-2B: Status {e.response.status_code}, Response: {error_response}")
+            return None
+        except Exception as e:
+            logger.error(f"Error fetching GSTR-2B: {str(e)}")
+            return None
+
+    def _parse_gstr2b_invoices(self, data: Dict, gstin: str, return_period: str) -> List[Dict]:
+        """
+        Parse GSTR-2B response and extract invoice details.
+        
+        Args:
+            data: Raw GSTR-2B data from API
+            gstin: Buyer GSTIN
+            return_period: Return period
+            
+        Returns:
+            List of normalized invoice records
+        """
+        invoices = []
+        
+        try:
+            # B2B Invoices (Regular)
+            b2b_data = data.get("b2b", [])
+            for supplier in b2b_data:
+                supplier_gstin = supplier.get("ctin", "")
+                inv_list = supplier.get("inv", [])
+                
+                for inv in inv_list:
+                    invoices.append({
+                        "supplier_gstin": supplier_gstin,
+                        "invoice_no": inv.get("inum", ""),
+                        "invoice_date": inv.get("dt", ""),
+                        "invoice_value": float(inv.get("val", 0)),
+                        "taxable_value": float(inv.get("txval", 0)),
+                        "tax_amount": float(inv.get("igst", 0)) + float(inv.get("cgst", 0)) + float(inv.get("sgst", 0)),
+                        "filing_status": inv.get("flag", "Y"),
+                        "return_period": return_period,
+                        "buyer_gstin": gstin
+                    })
+            
+            # B2BA Invoices (Amended)
+            b2ba_data = data.get("b2ba", [])
+            for supplier in b2ba_data:
+                supplier_gstin = supplier.get("ctin", "")
+                inv_list = supplier.get("inv", [])
+                
+                for inv in inv_list:
+                    invoices.append({
+                        "supplier_gstin": supplier_gstin,
+                        "invoice_no": inv.get("inum", ""),
+                        "invoice_date": inv.get("dt", ""),
+                        "invoice_value": float(inv.get("val", 0)),
+                        "taxable_value": float(inv.get("txval", 0)),
+                        "tax_amount": float(inv.get("igst", 0)) + float(inv.get("cgst", 0)) + float(inv.get("sgst", 0)),
+                        "filing_status": inv.get("flag", "Y"),
+                        "return_period": return_period,
+                        "buyer_gstin": gstin,
+                        "is_amended": True
+                    })
+            
+            logger.info(f"Parsed {len(invoices)} invoices from GSTR-2B data")
+            
+        except Exception as e:
+            logger.error(f"Error parsing GSTR-2B invoices: {str(e)}")
+        
+        return invoices
+
     def get_vendor_data(self, gstin: str) -> Optional[Dict]:
         """Fetch real data from Sandbox.co.in with Redis caching"""
         try:
