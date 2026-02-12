@@ -24,7 +24,7 @@ We will process every invoice through **3 Layers of Defense**. If ANY layer fail
 ## 🧩 Component Implementation Plan
 
 ### 1. Upgrade Tally TDL (The Missing Link)
-Currently, Tally only sends `GSTIN` + `Amount`. To enable Rule 37 (180 days) and exact 2B matching, we MUST send more data.
+To enable Rule 37 (180 days) and exact 2B matching, we MUST send more data from Tally.
 
 **Required TDL Changes:**
 ```tally
@@ -39,7 +39,56 @@ Currently, Tally only sends `GSTIN` + `Amount`. To enable Rule 37 (180 days) and
 "invoice_date": "2024-01-01"    <-- For Rule 37 (180 Days)
 ```
 
-### 2. Implement Rule 37 (180-Day Reversal) Logic
+### 2. GSTR-2B Reconciliation Ecosystem
+This system requires new database tables and API integration to fetch and store Govt data.
+
+#### A. Database Schema
+**`gst_credentials`**: Stores the session for the connected GSTIN.
+```sql
+CREATE TABLE gst_credentials (
+    id UUID PRIMARY KEY,
+    user_id UUID REFERENCES users(id),
+    gstin VARCHAR(15) UNIQUE,
+    username VARCHAR(50),
+    auth_token TEXT,       -- Session token from GSTN
+    token_expiry TIMESTAMP,
+    is_active BOOLEAN
+);
+```
+
+**`gstr_2b_data`**: Stores external invoice data downloaded from Govt.
+```sql
+CREATE TABLE gstr_2b_data (
+    id UUID PRIMARY KEY,
+    user_id UUID REFERENCES users(id),
+    gstin_supplier VARCHAR(15), -- The vendor
+    invoice_no VARCHAR(50),
+    invoice_date DATE,
+    invoice_value DECIMAL,
+    taxable_value DECIMAL,
+    tax_amount DECIMAL,         -- IGST + CGST + SGST
+    filing_status VARCHAR(20),  -- 'Y' or 'N'
+    return_period VARCHAR(10),  -- e.g., '022026'
+    source VARCHAR(20) DEFAULT 'GSTR-2B'
+);
+CREATE INDEX idx_reconcile ON gstr_2b_data(gstin_supplier, invoice_no, invoice_date);
+```
+
+#### B. API Integration (Sandbox.co.in GSP)
+We will use the **GSP Taxpayer APIs** (requires OTP).
+1.  **Request OTP:** `POST /taxpayer/auth/request-otp`
+2.  **Verify OTP:** `POST /taxpayer/auth/verify-otp` (Get Token)
+3.  **Fetch GSTR-2B:** `GET /taxpayer/returns/gstr2b`
+
+#### C. Reconciliation Logic (`MatchInvoice`)
+1.  **Fetch Candidate:** Query `gstr_2b_data` where `gstin_supplier` == UserInvoice.VendorGSTIN.
+2.  **Invoice Number Match:**
+    *   *Strict:* `gstr2b.invoice_no == user.invoice_no`
+    *   *Fuzzy:* Remove special chars (`/`, `-`, ` `) and leading zeros.
+3.  **Tax Amount Match:** If `abs(gstr2b.tax - user.tax) < 1.0` (Allow ₹1 rounding diff).
+4.  **Result:** `MATCHED` (Green), `MISMATCH_AMOUNT` (Orange), or `NOT_FOUND` (Red).
+
+### 3. Implement Rule 37 (180-Day Reversal)
 **The Law:** If you don't pay the vendor within 180 days of *Invoice Date*, you must reverse ITC with interest.
 
 **The Logic:**
@@ -57,12 +106,6 @@ def check_rule_37(invoice_date, payment_date=None):
     return None
 ```
 *Note: This requires us to track "Payment Status" in our SaaS, or receive the `VoucherDate` (Payment Date) from Tally.*
-
-### 3. GSTR-2B Reconciliation Logic
-**The Logic:**
-1.  **Strict Match:** Try to find exact `Invoice No` + `Date` in GSTR-2B table.
-2.  **Fuzzy Match:** If failed, try stripping special chars (e.g., `INV/001` -> `INV001`).
-3.  **Tax Match:** Check if `GSTR2B.tax_amount == User.tax_amount`.
 
 ---
 
