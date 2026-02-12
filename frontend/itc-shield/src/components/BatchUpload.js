@@ -6,7 +6,7 @@ import Card, { CardHeader, CardTitle, CardContent } from "@/components/ui/Card";
 import toast from "react-hot-toast";
 import { useAuth } from "@/app/context/AuthContext";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+import api, { getAuthConfig } from "@/lib/api";
 
 export default function BatchUpload({ onUploadSuccess }) {
     const { session } = useAuth();
@@ -70,20 +70,7 @@ export default function BatchUpload({ onUploadSuccess }) {
             const token = session?.access_token;
             if (!token) throw new Error("Not authenticated");
 
-            const response = await fetch(`${API_URL}/api/v1/batch/upload`, {
-                method: "POST",
-                headers: {
-                    Authorization: `Bearer ${token}`,
-                },
-                body: formData,
-            });
-
-            if (!response.ok) {
-                const error = await response.json();
-                throw new Error(error.detail?.message || error.detail || "Upload failed");
-            }
-
-            const data = await response.json();
+            const { data } = await api.post('/api/v1/batch/upload', formData, getAuthConfig(token));
             toast.success(`Batch uploaded successfully! Job ID: ${data.job_id}`);
 
             // Reset file
@@ -95,7 +82,7 @@ export default function BatchUpload({ onUploadSuccess }) {
             }
         } catch (error) {
             console.error("Upload error:", error);
-            toast.error(error.message || "Failed to upload batch");
+            toast.error(error.response?.data?.detail?.message || error.response?.data?.detail || error.message || "Failed to upload batch");
         } finally {
             setUploading(false);
         }

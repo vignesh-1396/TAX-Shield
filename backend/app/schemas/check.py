@@ -9,8 +9,23 @@ class CheckRequest(BaseModel):
     voucher_date: Optional[str] = ""
 
 class CheckResponse(BaseModel):
+    """Optimized response with minimal payload for faster API responses"""
     action: str  # BLOCK, WARN, ALLOW (for Tally compatibility)
     decision: str  # STOP, HOLD, RELEASE
+    title: str
+    message: str
+    rule_id: str
+    risk_level: str
+    gstin: str
+    vendor_name: str
+    check_id: int
+    certificate_url: str  # URL to download certificate
+    # Removed: timestamp, data_source (not critical for response)
+
+class CheckResponseDetailed(BaseModel):
+    """Detailed response with all fields (for backward compatibility)"""
+    action: str
+    decision: str
     title: str
     message: str
     rule_id: str
@@ -20,6 +35,7 @@ class CheckResponse(BaseModel):
     timestamp: str
     check_id: int
     data_source: str
+    certificate_url: str
 
 class VendorDetail(BaseModel):
     gstin: str

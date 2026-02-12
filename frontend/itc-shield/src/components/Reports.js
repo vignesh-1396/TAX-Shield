@@ -7,7 +7,7 @@ import { Calendar, Download, FileText, AlertTriangle, Shield } from "lucide-reac
 import toast from "react-hot-toast";
 import { useAuth } from "@/app/context/AuthContext";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+import api, { getAuthConfig } from "@/lib/api";
 
 export default function Reports() {
     const { session } = useAuth();
@@ -23,22 +23,14 @@ export default function Reports() {
             const token = session?.access_token;
             if (!token) throw new Error("Not authenticated");
 
-            const params = new URLSearchParams();
-            if (startDate) params.append("start_date", startDate);
-            if (endDate) params.append("end_date", endDate);
-
-            const response = await fetch(
-                `${API_URL}/api/v1/reports/${reportType}?${params.toString()}`,
-                {
-                    headers: {
-                        "Authorization": `Bearer ${token}`
-                    }
+            const { data } = await api.get(`/api/v1/reports/${reportType}`, {
+                ...getAuthConfig(token),
+                params: {
+                    start_date: startDate || undefined,
+                    end_date: endDate || undefined
                 }
-            );
+            });
 
-            if (!response.ok) throw new Error("Failed to generate report");
-
-            const data = await response.json();
             setReportData(data);
             toast.success("Report generated successfully");
         } catch (error) {

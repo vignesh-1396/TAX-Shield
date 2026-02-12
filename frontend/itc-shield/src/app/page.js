@@ -24,7 +24,7 @@ import {
 } from "lucide-react";
 import toast from "react-hot-toast";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+import api, { getAuthConfig } from "@/lib/api";
 
 export default function Dashboard() {
   const { session } = useAuth();
@@ -51,30 +51,17 @@ export default function Dashboard() {
       const token = session?.access_token;
       if (!token) throw new Error("Not authenticated");
 
-      const response = await fetch(`${API_URL}/api/v1/compliance/check`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          gstin: gstin.toUpperCase(),
-          amount: parseFloat(amount),
-          party_name: "Vendor Check",
-        }),
-      });
+      const { data } = await api.post('/api/v1/compliance/check', {
+        gstin: gstin.toUpperCase(),
+        amount: parseFloat(amount),
+        party_name: "Vendor Check",
+      }, getAuthConfig(token));
 
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.detail || "API request failed");
-      }
-
-      const data = await response.json();
       setResult(data);
       toast.success("Compliance check completed");
     } catch (error) {
       console.error("Check error:", error);
-      toast.error(error.message || "Failed to perform compliance check");
+      toast.error(error.response?.data?.detail || error.message || "Failed to perform compliance check");
     } finally {
       setLoading(false);
     }
@@ -90,18 +77,15 @@ export default function Dashboard() {
       const token = session?.access_token;
       if (!token) throw new Error("Not authenticated");
 
-      const response = await fetch(
-        `${API_URL}/api/v1/compliance/certificate/${result.check_id}`,
+      const response = await api.get(
+        `/api/v1/compliance/certificate/${result.check_id}`,
         {
-          headers: {
-            "Authorization": `Bearer ${token}`
-          }
+          ...getAuthConfig(token),
+          responseType: 'blob'
         }
       );
 
-      if (!response.ok) throw new Error("Download failed");
-
-      const blob = await response.blob();
+      const blob = response.data;
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;

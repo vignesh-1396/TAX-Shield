@@ -6,7 +6,7 @@ import Button from "@/components/ui/Button";
 import { useAuth } from "@/app/context/AuthContext";
 import toast from "react-hot-toast";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+import api, { getAuthConfig } from "@/lib/api";
 
 export default function BatchStatus({ jobId, onComplete }) {
     const { session } = useAuth();
@@ -24,17 +24,7 @@ export default function BatchStatus({ jobId, onComplete }) {
                 const token = session?.access_token;
                 if (!token) return; // Wait for auth
 
-                const response = await fetch(`${API_URL}/api/v1/batch/status/${jobId}`, {
-                    headers: {
-                        Authorization: `Bearer ${token}`
-                    }
-                });
-
-                if (!response.ok) {
-                    throw new Error("Failed to fetch status");
-                }
-
-                const data = await response.json();
+                const { data } = await api.get(`/api/v1/batch/status/${jobId}`, getAuthConfig(token));
 
                 if (data.status === "completed") {
                     setStatus("completed");

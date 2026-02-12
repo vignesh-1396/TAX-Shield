@@ -14,8 +14,24 @@ IF NOT EXIST "venv_win" (
     python -m venv venv_win
 )
 call venv_win\Scripts\activate
+
 echo Installing dependencies...
+:: Ensure pip is up to date
+python -m pip install --upgrade pip
+:: Install all requirements including python-dotenv
 pip install -r requirements.txt
+pip install python-dotenv
+
+:: Check for .env file
+IF NOT EXIST ".env" (
+    echo WARNING: .env file missing in backend folder!
+    echo Creating a template .env file...
+    type nul > .env
+    echo SUPABASE_URL=YOUR_SUPABASE_URL_HERE>> .env
+    echo SUPABASE_KEY=YOUR_SUPABASE_KEY_HERE>> .env
+    echo Please edit backend/.env with your actual keys.
+    pause
+)
 
 :: Start Backend in new window
 echo Starting Backend Server...
