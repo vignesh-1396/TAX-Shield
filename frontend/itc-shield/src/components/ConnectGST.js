@@ -5,7 +5,7 @@ import Card, { CardHeader, CardTitle, CardContent } from "@/components/ui/Card";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
 import toast from "react-hot-toast";
-import { api } from "@/services/api";
+import api from "@/lib/api";
 
 const STEPS = {
     DISCONNECTED: "disconnected",

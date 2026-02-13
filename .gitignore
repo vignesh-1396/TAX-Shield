@@ -2,32 +2,56 @@
 __pycache__/
 *.py[cod]
 *$py.class
+*.so
+.Python
 venv/
-.env
-.DS_Store
+env/
+ENV/
+*.egg-info/
+.pytest_cache/
+.coverage
 
 # Node
 node_modules/
 .next/
-dist/
+out/
 build/
-coverage/
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
+dist/
 
-# Tally
-*.tally
-*.T900
+# Environment
+.env
+.env.local
+.env.*.local
 
 # IDE
 .vscode/
 .idea/
+*.swp
+*.swo
+*~
 
-# Local
-*.local
-.gemini/
-brain/
-tmp/
+# OS
+.DS_Store
+._*
+Thumbs.db
+
+# Output files
+backend/output/
+*.zip
+*.pdf
+
+# Test files
+test_*.py
+test_*.csv
+test_*.js
+profile_*.py
+sample_*.csv
+
+# Logs
 *.log
+logs/
+
+# Database
+*.db
+*.sqlite
 *.sqlite3

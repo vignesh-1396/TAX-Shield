@@ -2,75 +2,24 @@
 Monitoring Endpoints for Celery Tasks and System Metrics
 """
 from fastapi import APIRouter, HTTPException
-from celery.result import AsyncResult
+# from celery.result import AsyncResult  # Celery not installed
 from datetime import datetime, timedelta
 import logging
 
-from app.core.celery_app import celery_app
+# from app.core.celery_app import celery_app  # Celery not installed
 from app.db.crud import batch as batch_crud
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
 
-
-@router.get("/celery/stats")
-async def get_celery_stats():
-    """
-    Get Celery worker statistics
-    """
-    try:
-        # Get active workers
-        inspect = celery_app.control.inspect()
-        
-        stats = inspect.stats()
-        active_tasks = inspect.active()
-        registered_tasks = inspect.registered()
-        
-        return {
-            "workers": stats or {},
-            "active_tasks": active_tasks or {},
-            "registered_tasks": registered_tasks or {},
-            "timestamp": datetime.now().isoformat()
-        }
-    except Exception as e:
-        logger.error(f"Failed to get Celery stats: {e}")
-        return {
-            "error": "Celery workers not available",
-            "message": str(e)
-        }
-
-
-@router.get("/celery/task/{task_id}")
-async def get_task_status(task_id: str):
-    """
-    Get status of a specific Celery task
-    """
-    try:
-        task = AsyncResult(task_id, app=celery_app)
-        
-        response = {
-            "task_id": task_id,
-            "state": task.state,
-            "ready": task.ready(),
-            "successful": task.successful() if task.ready() else None,
-            "failed": task.failed() if task.ready() else None,
-        }
-        
-        # Add result or error info
-        if task.ready():
-            if task.successful():
-                response["result"] = task.result
-            elif task.failed():
-                response["error"] = str(task.info)
-        else:
-            # Task is still running, get progress if available
-            if task.state == 'PROGRESS':
-                response["progress"] = task.info
-        
-        return response
-    except Exception as e:
-        logger.error(f"Failed to get task status: {e}")
-        raise HTTPException(status_code=404, detail="Task not found")
+# Celery endpoints disabled - Celery not installed
+# @router.get("/celery/stats")
+# async def get_celery_stats():
+#     return {"error": "Celery not available"}
+#
+# @router.get("/celery/task/{task_id}")
+# async def get_task_status(task_id: str):
+#     return {"error": "Celery not available"}
 
 
 @router.get("/batch/metrics")

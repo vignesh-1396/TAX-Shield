@@ -238,6 +238,48 @@ def get_supplier_invoices(user_id: str, supplier_gstin: str) -> List[Dict]:
             
             return invoices
             
+            
     except Exception as e:
         logger.error(f"Error fetching supplier invoices: {str(e)}")
+        return []
+
+def get_invoices_by_period(user_id: str, return_period: str) -> List[Dict]:
+    """
+    Get all GSTR-2B invoices for a specific return period.
+    
+    Args:
+        user_id: User ID
+        return_period: Return period (MMYYYY)
+        
+    Returns:
+        List of invoice dicts
+    """
+    try:
+        with get_connection() as (conn, cursor):
+            cursor.execute(f"""
+                SELECT gstin_supplier, invoice_no, invoice_date, 
+                       invoice_value, taxable_value, tax_amount, 
+                       filing_status, source
+                FROM gstr_2b_data
+                WHERE user_id = {ph()} AND return_period = {ph()}
+            """, (user_id, return_period))
+            
+            invoices = []
+            for row in cursor.fetchall():
+                invoices.append({
+                    "gstin": row.get('gstin_supplier'),
+                    "invoice_number": row.get('invoice_no'),
+                    "invoice_date": row.get('invoice_date'),
+                    "invoice_value": row.get('invoice_value'),
+                    "taxable_value": row.get('taxable_value'),
+                    "tax_amount": row.get('tax_amount'),
+                    "filing_status": row.get('filing_status'),
+                    "source": row.get('source')
+                })
+            
+            return invoices
+            
+    except Exception as e:
+        import traceback
+        logger.error(f"Error fetching period invoices: {str(e)}\n{traceback.format_exc()}")
         return []

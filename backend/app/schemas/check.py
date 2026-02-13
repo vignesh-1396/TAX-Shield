@@ -19,8 +19,9 @@ class CheckResponse(BaseModel):
     gstin: str
     vendor_name: str
     check_id: int
-    certificate_url: str  # URL to download certificate
-    # Removed: timestamp, data_source (not critical for response)
+    certificate_url: str
+    data_source: Optional[str] = "GSP_LIVE"
+    timestamp: Optional[str] = None
 
 class CheckResponseDetailed(BaseModel):
     """Detailed response with all fields (for backward compatibility)"""

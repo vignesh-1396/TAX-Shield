@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from app.api.v1.endpoints import auth, check, batch, tally, reports, health, monitoring, api_keys, gstr2b
+from app.api.v1.endpoints import auth, check, batch, tally, reports, health, monitoring, api_keys, gstr2b, reconciliation
 
 api_router = APIRouter()
 
@@ -17,3 +17,6 @@ api_router.include_router(reports.router, prefix="/reports", tags=["Reports"])
 
 # Monitoring endpoints
 api_router.include_router(monitoring.router, prefix="/monitoring", tags=["Monitoring"])
+
+# Reconciliation endpoints (GSTR-2B)
+api_router.include_router(reconciliation.router, prefix="/reconcile", tags=["Reconciliation"])

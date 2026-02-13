@@ -23,15 +23,14 @@ export default function Reports() {
             const token = session?.access_token;
             if (!token) throw new Error("Not authenticated");
 
-            const { data } = await api.get(`/api/v1/reports/${reportType}`, {
+            const data = await api.get(`/reports/${reportType}`, {
                 ...getAuthConfig(token),
                 params: {
                     start_date: startDate || undefined,
-                    end_date: endDate || undefined
+                    end_date: endDate || undefined,
+                    format: 'json'
                 }
-            });
-
-            setReportData(data);
+            }); setReportData(data);
             toast.success("Report generated successfully");
         } catch (error) {
             console.error("Report error:", error);

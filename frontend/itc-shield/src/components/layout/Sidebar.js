@@ -7,12 +7,14 @@ import {
     FileText,
     Settings,
     Shield,
-    CreditCard
+    CreditCard,
+    RefreshCcw
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const navigation = [
     { name: "Dashboard", href: "/", icon: LayoutDashboard },
+    { name: "Reconciliation", href: "/reconciliation", icon: RefreshCcw },
     { name: "Reports", href: "/reports", icon: FileText },
     { name: "Billing", href: "/billing", icon: CreditCard },
     { name: "Settings", href: "/settings", icon: Settings },

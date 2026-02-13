@@ -56,7 +56,7 @@ def parse_csv_content(content: bytes) -> Tuple[List[Dict], List[str]]:
             
             # Extract optional vendor name
             vendor_name = ""
-            for col in ['vendor_name', 'name', 'party_name', 'vendor', 'supplier']:
+            for col in ['vendor_name', 'name', 'party_name', 'vendor', 'supplier', 'party_nam']:
                 if col in row and row[col]:
                     vendor_name = row[col].strip()
                     break
@@ -73,7 +73,7 @@ def parse_csv_content(content: bytes) -> Tuple[List[Dict], List[str]]:
             
             valid_items.append({
                 'gstin': gstin,
-                'vendor_name': vendor_name,
+                'vendor_name': vendor_name,  # Changed from party_name to match DB schema
                 'amount': amount
             })
     

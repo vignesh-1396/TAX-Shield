@@ -1,13 +1,11 @@
 from fastapi import APIRouter, UploadFile, File, HTTPException, Depends
 from fastapi.responses import FileResponse
-from celery.result import AsyncResult
 import os
 import logging
 
 from app.services import batch as batch_service
 from app.utils.csv_parser import parse_csv_content, generate_sample_csv
 from app.api.deps import get_current_user
-from app.tasks.batch_tasks import process_batch_async
 from app.services.storage import storage
 
 router = APIRouter()
@@ -48,19 +46,29 @@ async def upload_batch(
     result = batch_service.create_batch(items, file.filename, user_id=current_user.get("id") if current_user else None)
     job_id = result['job_id']
     
-    # Queue async task (non-blocking)
-    task = process_batch_async.delay(job_id, items)
-    
-    logger.info(f"Batch job {job_id} queued with task {task.id} - {len(items)} vendors")
-    
-    return {
-        "job_id": job_id,
-        "task_id": task.id,
-        "total_vendors": len(items),
-        "status": "queued",
-        "message": f"Batch processing started for {len(items)} vendors. Use /status/{job_id} to track progress.",
-        "parse_errors": errors[:5] if errors else []
-    }
+    # Process batch synchronously (optimized - takes 5-10 seconds)
+    logger.info(f"Starting synchronous batch processing for job {job_id} - {len(items)} vendors")
+    try:
+        batch_service.process_batch_sync(job_id)
+        logger.info(f"Batch processing completed for job {job_id}")
+        
+        # Get final status
+        final_status = batch_service.get_batch_status(job_id)
+        
+        return {
+            "job_id": job_id,
+            "total": len(items), # Fix for frontend which expects 'total'
+            "total_vendors": len(items),
+            "status": final_status.get('status', 'COMPLETED'),
+            "processed": final_status.get('processed', len(items)),
+            "success": final_status.get('success', 0),
+            "failed": final_status.get('failed', 0),
+            "message": f"Batch processed successfully - {final_status.get('success', 0)} succeeded, {final_status.get('failed', 0)} failed",
+            "parse_errors": errors[:5] if errors else []
+        }
+    except Exception as e:
+        logger.error(f"Batch processing failed for job {job_id}: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Batch processing failed: {str(e)}")
 
 @router.get("/status/{job_id}")
 async def get_job_status(job_id: str, current_user: dict = None):
@@ -94,7 +102,14 @@ async def download_batch_result(job_id: str, current_user: dict = None):
     if not status or status['status'] != 'COMPLETED':
         raise HTTPException(status_code=400, detail="Job not completed")
     
-    output_file = status.get('output_file')
+    # Trigger On-Demand Certificate Generation if needed
+    output_file = batch_service.generate_certificates_zip(job_id)
+    
+    # Fallback to stored path if generation returns nothing (e.g. invalid job)
+    if not output_file:
+        status = batch_service.get_batch_status(job_id)
+        output_file = status.get('output_file')
+        
     if not output_file:
         raise HTTPException(status_code=404, detail="Output file not found")
     

@@ -38,7 +38,9 @@ class Settings(BaseModel):
     SANDBOX_SECRET: Optional[str] = os.getenv("SANDBOX_SECRET")
     
     # Redis Cache Configuration
-    REDIS_URL: Optional[str] = os.getenv("REDIS_URL", "redis://localhost:6379/0")
+    # Redis Cache Configuration
+    # Defaults to None if not set or invalid
+    REDIS_URL: Optional[str] = os.getenv("REDIS_URL")
 
     # CORS
     BACKEND_CORS_ORIGINS: List[str] = [

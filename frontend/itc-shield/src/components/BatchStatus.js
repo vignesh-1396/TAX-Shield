@@ -8,7 +8,7 @@ import toast from "react-hot-toast";
 
 import api, { getAuthConfig } from "@/lib/api";
 
-export default function BatchStatus({ jobId, onComplete }) {
+export default function BatchStatus({ jobId, onComplete, onReset }) {
     const { session } = useAuth();
     const [status, setStatus] = useState("processing"); // processing, completed, failed
     const [stats, setStats] = useState(null);
@@ -24,16 +24,19 @@ export default function BatchStatus({ jobId, onComplete }) {
                 const token = session?.access_token;
                 if (!token) return; // Wait for auth
 
-                const { data } = await api.get(`/api/v1/batch/status/${jobId}`, getAuthConfig(token));
+                const data = await api.get(`/batch/status/${jobId}`, getAuthConfig(token));
 
-                if (data.status === "completed") {
+                // Safely access status with case-insensitive comparison
+                const statusUpper = (data?.status || '').toUpperCase();
+
+                if (statusUpper === "COMPLETED") {
                     setStatus("completed");
                     setStats(data);
                     clearInterval(intervalId);
                     if (onComplete) onComplete(data);
-                } else if (data.status === "failed") {
+                } else if (statusUpper === "FAILED") {
                     setStatus("failed");
-                    setError(data.error || "Batch processing failed");
+                    setError(data?.error || "Batch processing failed");
                     clearInterval(intervalId);
                 }
                 // If processing, do nothing (continue polling)
@@ -88,11 +91,26 @@ export default function BatchStatus({ jobId, onComplete }) {
                     <div>
                         <h3 className="text-lg font-medium text-green-900">Batch Completed</h3>
                         <p className="text-green-700">
-                            Processed {stats.total_records} records.
-                            Found {stats.risk_summary?.high_risk || 0} high risk vendors.
+                            Processed {stats.total || stats.total_vendors || 0} records.
+                            Found {stats.failed || 0} issues.
                         </p>
                     </div>
-                    {/* Link to results or action button could go here */}
+
+                    <a
+                        href={`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/v1/batch/download/${jobId}`}
+                        onClick={() => {
+                            toast.success("Download started!");
+                            if (onReset) {
+                                setTimeout(() => {
+                                    onReset();
+                                }, 1500);
+                            }
+                        }}
+                        className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+                    >
+                        <FileText className="w-5 h-5" />
+                        Download Report (ZIP)
+                    </a>
                 </div>
             </Card>
         );

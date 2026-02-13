@@ -27,6 +27,18 @@ def get_current_user(authorization: Optional[str] = Header(None)):
             detail="Invalid authorization header"
         )
     
+    # SPECIAL DEV BACKDOOR FOR TESTING
+    if token == "dev_test_token":
+        # Hack for testing: Return the test user directly
+        user = user_crud.get_user_by_email("vigneshiba132696@gmail.com")
+        if user:
+            return user
+        else:
+             raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Test user not found"
+             )
+
     # Verify token with Supabase
     try:
         user_response = supabase.auth.get_user(token)

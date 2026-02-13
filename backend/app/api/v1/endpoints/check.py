@@ -88,7 +88,9 @@ async def check_compliance(request: Request, check_request: CheckRequest):
         gstin=gstin,
         vendor_name=vendor_data.get("legal_name", "") if vendor_data else "",
         check_id=check_id,
-        certificate_url=f"{settings.API_V1_STR}/compliance/certificate/{check_id}"
+        certificate_url=f"{settings.API_V1_STR}/compliance/certificate/{check_id}",
+        data_source=data_source,
+        timestamp=datetime.now().isoformat()
     )
 
 @router.get("/vendor/{gstin}", response_model=VendorDetail)

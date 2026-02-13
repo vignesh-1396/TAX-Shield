@@ -70,8 +70,13 @@ export default function BatchUpload({ onUploadSuccess }) {
             const token = session?.access_token;
             if (!token) throw new Error("Not authenticated");
 
-            const { data } = await api.post('/api/v1/batch/upload', formData, getAuthConfig(token));
-            toast.success(`Batch uploaded successfully! Job ID: ${data.job_id}`);
+            const data = await api.post('/batch/upload', formData, {
+                headers: {
+                    ...getAuthConfig(token).headers,
+                    "Content-Type": undefined
+                }
+            });
+            // toast.success(`Batch uploaded successfully! Job ID: ${data.job_id}`); // Handled by parent
 
             // Reset file
             setFile(null);
@@ -82,7 +87,23 @@ export default function BatchUpload({ onUploadSuccess }) {
             }
         } catch (error) {
             console.error("Upload error:", error);
-            toast.error(error.response?.data?.detail?.message || error.response?.data?.detail || error.message || "Failed to upload batch");
+
+            // Handle Pydantic validation errors (422)
+            let errorMessage = "Failed to upload batch";
+            if (error.response?.data?.detail) {
+                if (Array.isArray(error.response.data.detail)) {
+                    // Pydantic validation errors
+                    errorMessage = error.response.data.detail.map(err => err.msg).join(", ");
+                } else if (typeof error.response.data.detail === 'string') {
+                    errorMessage = error.response.data.detail;
+                } else if (error.response.data.detail.message) {
+                    errorMessage = error.response.data.detail.message;
+                }
+            } else if (error.message) {
+                errorMessage = error.message;
+            }
+
+            toast.error(errorMessage);
         } finally {
             setUploading(false);
         }

@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "@/app/context/AuthContext";
 import AppLayout from "@/components/layout/AppLayout";
 import StatCard from "@/components/ui/StatCard";
@@ -34,6 +34,26 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
   const [batchJobId, setBatchJobId] = useState(null);
+  const [recentChecks, setRecentChecks] = useState([]);
+
+  const fetchRecentChecks = async () => {
+    try {
+      const token = session?.access_token;
+      if (!token) return;
+
+      const data = await api.get('/compliance/history?limit=5', getAuthConfig(token));
+      setRecentChecks(data);
+    } catch (error) {
+      console.error("Failed to fetch recent checks:", error);
+    }
+  };
+
+  // Fetch recent checks on mount and when session changes
+  useEffect(() => {
+    if (session?.access_token) {
+      fetchRecentChecks();
+    }
+  }, [session]);
 
   const handleCheck = async () => {
     if (!gstin || gstin.length !== 15) {
@@ -51,14 +71,24 @@ export default function Dashboard() {
       const token = session?.access_token;
       if (!token) throw new Error("Not authenticated");
 
-      const { data } = await api.post('/api/v1/compliance/check', {
+      const data = await api.post('/compliance/check', {
         gstin: gstin.toUpperCase(),
         amount: parseFloat(amount),
         party_name: "Vendor Check",
       }, getAuthConfig(token));
 
       setResult(data);
+      console.log("Compliance Result:", data);
+      console.log("Compliance Result:", data);
       toast.success("Compliance check completed");
+
+      // Update recent checks list
+      fetchRecentChecks();
+
+      // Auto-scroll to result
+      setTimeout(() => {
+        document.getElementById("result-section")?.scrollIntoView({ behavior: "smooth", block: "center" });
+      }, 100);
     } catch (error) {
       console.error("Check error:", error);
       toast.error(error.response?.data?.detail || error.message || "Failed to perform compliance check");
@@ -77,15 +107,13 @@ export default function Dashboard() {
       const token = session?.access_token;
       if (!token) throw new Error("Not authenticated");
 
-      const response = await api.get(
-        `/api/v1/compliance/certificate/${result.check_id}`,
+      const blob = await api.get(
+        `/compliance/certificate/${result.check_id}`,
         {
           ...getAuthConfig(token),
           responseType: 'blob'
         }
       );
-
-      const blob = response.data;
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
@@ -102,15 +130,43 @@ export default function Dashboard() {
     }
   };
 
+  const handleSingleCheckReset = () => {
+    setGstin("");
+    setAmount("");
+    setResult(null);
+    toast.dismiss();
+  };
+
+  const handleBatchReset = () => {
+    setBatchJobId(null);
+    toast.dismiss();
+  };
+
   const handleBatchUploadSuccess = (data) => {
     setBatchJobId(data.job_id);
     toast.dismiss('batch-upload');
-    toast.success("Batch uploaded! Tracking progress...", { id: 'batch-upload' });
+    toast.loading(
+      <div className="font-medium">
+        🚀 Batch uploaded!
+        <div className="text-sm font-normal opacity-80 mt-1">
+          Tracking processing status...
+        </div>
+      </div>,
+      { id: 'batch-upload', duration: 4000 }
+    );
   };
 
   const handleBatchComplete = (data) => {
-    toast.dismiss('batch-complete');
-    toast.success(`Batch processing complete! ${data.success_count} successful, ${data.failed_count} failed`, { id: 'batch-complete' });
+    toast.dismiss('batch-upload');
+    toast.success(
+      <div className="font-medium">
+        ✅ Batch Processing Complete!
+        <div className="text-sm font-normal opacity-80 mt-1">
+          {data.success_count} Successful • {data.failed_count} Failed
+        </div>
+      </div>,
+      { id: 'batch-complete', duration: 5000 }
+    );
   };
 
   const getDecisionBadge = (decision) => {
@@ -235,34 +291,42 @@ export default function Dashboard() {
                   </div>
 
                   {result && (
-                    <div className="mt-6 p-6 bg-gray-50 rounded-lg space-y-4">
+                    <div id="result-section" className="mt-6 p-6 bg-gray-50 rounded-lg space-y-4 border border-blue-100 shadow-sm">
                       <div className="flex items-center justify-between">
                         <div>
                           <p className="text-sm text-gray-600">Decision</p>
                           <div className="mt-1">{getDecisionBadge(result.decision)}</div>
                         </div>
-                        <Button onClick={handleDownloadCertificate} variant="secondary">
-                          <Download className="w-4 h-4 mr-2" />
-                          Download Certificate
-                        </Button>
+                        <div className="flex gap-2">
+                          <Button onClick={handleSingleCheckReset} variant="ghost" className="text-gray-600 hover:text-gray-900">
+                            <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+                            Start New Check
+                          </Button>
+                          <Button onClick={handleDownloadCertificate} variant="secondary">
+                            <Download className="w-4 h-4 mr-2" />
+                            Download Certificate
+                          </Button>
+                        </div>
                       </div>
 
                       <div className="grid grid-cols-2 gap-4 pt-4 border-t">
                         <div>
                           <p className="text-sm text-gray-600">GSTIN</p>
-                          <p className="font-medium">{result.gstin}</p>
+                          <p className="font-medium text-gray-900">{result.gstin}</p>
                         </div>
                         <div>
                           <p className="text-sm text-gray-600">Vendor Name</p>
-                          <p className="font-medium">{result.vendor_name || "N/A"}</p>
+                          <p className="font-medium text-gray-900">{result.vendor_name || "N/A"}</p>
                         </div>
                         <div>
                           <p className="text-sm text-gray-600">Risk Level</p>
-                          <p className="font-medium">{result.risk_level}</p>
+                          <p className="font-medium text-gray-900">{result.risk_level}</p>
                         </div>
                         <div>
-                          <p className="text-sm text-gray-600">Data Source</p>
-                          <p className="font-medium">{result.data_source}</p>
+                          <p className="text-sm text-gray-600">Timestamp</p>
+                          <p className="font-medium text-xs mt-1 text-gray-900">
+                            {result.timestamp ? new Date(result.timestamp).toLocaleString() : new Date().toLocaleString()}
+                          </p>
                         </div>
                       </div>
 
@@ -287,57 +351,45 @@ export default function Dashboard() {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-3">
-                    {[
-                      {
-                        name: "ABC Enterprises",
-                        gstin: "33AAJCG9959L1ZT",
-                        status: "Approved",
-                        time: "2 min ago",
-                      },
-                      {
-                        name: "XYZ Corp",
-                        gstin: "29AABCU9603R1ZX",
-                        status: "Review Required",
-                        time: "15 min ago",
-                      },
-                      {
-                        name: "Test Vendor Ltd",
-                        gstin: "01AABCU9603R1ZX",
-                        status: "Blocked",
-                        time: "1 hour ago",
-                      },
-                    ].map((check, idx) => (
-                      <div
-                        key={idx}
-                        className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
-                      >
-                        <div className="flex-1">
-                          <p className="font-medium text-gray-900">{check.name}</p>
-                          <p className="text-sm text-gray-600">{check.gstin}</p>
+
+                    {recentChecks.length === 0 ? (
+                      <p className="text-center text-gray-500 py-4">No recent checks found.</p>
+                    ) : (
+                      recentChecks.map((check, idx) => (
+                        <div
+                          key={idx}
+                          className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
+                        >
+                          <div className="flex-1">
+                            <p className="font-medium text-gray-900">{check.vendor_name || "Unknown Vendor"}</p>
+                            <p className="text-sm text-gray-600">{check.gstin}</p>
+                          </div>
+                          <div className="flex items-center gap-4">
+                            {check.decision === "RELEASE" && (
+                              <Badge variant="success">
+                                <CheckCircle className="w-3 h-3 mr-1" />
+                                Approved
+                              </Badge>
+                            )}
+                            {check.decision === "HOLD" && (
+                              <Badge variant="warning">
+                                <Clock className="w-3 h-3 mr-1" />
+                                Review
+                              </Badge>
+                            )}
+                            {check.decision === "STOP" && (
+                              <Badge variant="danger">
+                                <XCircle className="w-3 h-3 mr-1" />
+                                Blocked
+                              </Badge>
+                            )}
+                            <span className="text-sm text-gray-500">
+                              {new Date(check.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            </span>
+                          </div>
                         </div>
-                        <div className="flex items-center gap-4">
-                          {check.status === "Approved" && (
-                            <Badge variant="success">
-                              <CheckCircle className="w-3 h-3 mr-1" />
-                              {check.status}
-                            </Badge>
-                          )}
-                          {check.status === "Review Required" && (
-                            <Badge variant="warning">
-                              <Clock className="w-3 h-3 mr-1" />
-                              {check.status}
-                            </Badge>
-                          )}
-                          {check.status === "Blocked" && (
-                            <Badge variant="danger">
-                              <XCircle className="w-3 h-3 mr-1" />
-                              {check.status}
-                            </Badge>
-                          )}
-                          <span className="text-sm text-gray-500">{check.time}</span>
-                        </div>
-                      </div>
-                    ))}
+                      ))
+                    )}
                   </div>
                 </CardContent>
               </Card>
@@ -351,7 +403,7 @@ export default function Dashboard() {
                 <BatchUpload onUploadSuccess={handleBatchUploadSuccess} />
               ) : (
                 <div className="space-y-6">
-                  <BatchStatus jobId={batchJobId} onComplete={handleBatchComplete} />
+                  <BatchStatus jobId={batchJobId} onComplete={handleBatchComplete} onReset={handleBatchReset} />
                   <div className="text-center">
                     <Button
                       onClick={() => setBatchJobId(null)}
