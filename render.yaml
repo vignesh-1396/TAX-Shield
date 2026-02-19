@@ -12,6 +12,10 @@ services:
         value: 3.11.0
       - key: ALLOWED_ORIGINS
         value: https://itc-shield-frontend.onrender.com,http://localhost:3000
+      - key: DATABASE_URL
+        sync: false
+      - key: JWT_SECRET_KEY
+        sync: false
       - key: SUPABASE_URL
         sync: false
       - key: SUPABASE_ANON_KEY
@@ -36,6 +40,8 @@ services:
     buildCommand: cd frontend/itc-shield && npm install && npm run build
     startCommand: cd frontend/itc-shield && npm start
     envVars:
+      - key: NODE_VERSION
+        value: 20.11.0
       - key: NEXT_PUBLIC_API_URL
         fromService:
           type: web
