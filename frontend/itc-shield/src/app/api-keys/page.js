@@ -1,13 +1,13 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/Card';
+import { Button } from '@/components/ui/Button';
+import { Input } from '@/components/ui/Input';
+import { Badge } from '@/components/ui/Badge';
 import { Copy, Trash2, Key, Plus, Eye, EyeOff, AlertCircle } from 'lucide-react';
-import { useAuth } from '@/contexts/AuthContext';
-import { apiClient } from '@/lib/api';
+import { useAuth } from '@/app/context/AuthContext';
+import api from '@/lib/api';
 
 export default function APIKeysPage() {
     const { user } = useAuth();
@@ -25,7 +25,7 @@ export default function APIKeysPage() {
     const loadAPIKeys = async () => {
         try {
             setLoading(true);
-            const response = await apiClient.get('/api-keys');
+            const response = await api.get('/api-keys');
             setApiKeys(response.data);
         } catch (error) {
             console.error('Failed to load API keys:', error);
@@ -42,7 +42,7 @@ export default function APIKeysPage() {
 
         try {
             setCreating(true);
-            const response = await apiClient.post('/api-keys', {
+            const response = await api.post('/api-keys', {
                 key_name: newKeyName,
                 expires_in_days: null, // No expiration
                 permissions: 'read,write'
@@ -66,7 +66,7 @@ export default function APIKeysPage() {
         }
 
         try {
-            await apiClient.delete(`/api-keys/${keyId}`);
+            await api.delete(`/api-keys/${keyId}`);
             await loadAPIKeys();
         } catch (error) {
             console.error('Failed to revoke API key:', error);
