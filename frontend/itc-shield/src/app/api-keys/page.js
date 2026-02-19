@@ -1,9 +1,9 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/Card';
-import { Button } from '@/components/ui/Button';
-import { Input } from '@/components/ui/Input';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
+import Button from '@/components/ui/Button';
+import Input from '@/components/ui/Input';
 import { Badge } from '@/components/ui/Badge';
 import { Copy, Trash2, Key, Plus, Eye, EyeOff, AlertCircle } from 'lucide-react';
 import { useAuth } from '@/app/context/AuthContext';
@@ -107,9 +107,9 @@ export default function APIKeysPage() {
                             <Key className="h-5 w-5" />
                             API Key Created Successfully
                         </CardTitle>
-                        <CardDescription className="text-green-600">
+                        <p className="text-sm text-green-600">
                             <strong>IMPORTANT:</strong> Copy this key now. You won't be able to see it again!
-                        </CardDescription>
+                        </p>
                     </CardHeader>
                     <CardContent>
                         <div className="flex items-center gap-2 mb-4">
@@ -144,9 +144,9 @@ export default function APIKeysPage() {
             <Card className="mb-6">
                 <CardHeader>
                     <CardTitle>Create New API Key</CardTitle>
-                    <CardDescription>
+                    <p className="text-sm text-gray-500">
                         Generate a new API key for Tally integration or API access
-                    </CardDescription>
+                    </p>
                 </CardHeader>
                 <CardContent>
                     <div className="flex gap-2">
@@ -172,9 +172,9 @@ export default function APIKeysPage() {
             <Card>
                 <CardHeader>
                     <CardTitle>Your API Keys</CardTitle>
-                    <CardDescription>
+                    <p className="text-sm text-gray-500">
                         {apiKeys.length} active key{apiKeys.length !== 1 ? 's' : ''}
-                    </CardDescription>
+                    </p>
                 </CardHeader>
                 <CardContent>
                     {loading ? (
