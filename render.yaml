@@ -6,7 +6,7 @@ services:
     region: singapore
     plan: free
     buildCommand: ls -R && pip install -r backend/requirements.txt
-    startCommand: python render_entry.py
+    startCommand: ls -la && python render_entry.py
     envVars:
       - key: PYTHON_VERSION
         value: 3.11.0
