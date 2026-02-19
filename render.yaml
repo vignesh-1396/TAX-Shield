@@ -12,7 +12,10 @@ services:
       - key: PYTHON_VERSION
         value: 3.11.0
       - key: ALLOWED_ORIGINS
-        value: https://itc-shield-frontend.onrender.com,http://localhost:3000
+        fromService:
+          type: web
+          name: itc-shield-frontend
+          property: host
       - key: GSP_MODE
         value: sandbox
 
@@ -29,4 +32,7 @@ services:
       - key: NODE_VERSION
         value: 20.11.0
       - key: NEXT_PUBLIC_API_URL
-        value: https://itc-shield-backend.onrender.com
+        fromService:
+          type: web
+          name: itc-shield-backend
+          property: host

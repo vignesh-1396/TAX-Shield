@@ -51,7 +51,16 @@ class Settings(BaseModel):
     @validator("BACKEND_CORS_ORIGINS", pre=True)
     def assemble_cors_origins(cls, v: Union[str, List[str]]) -> Union[List[str], str]:
         if isinstance(v, str) and not v.startswith("["):
-            return [i.strip() for i in v.split(",")]
+            origins = [i.strip() for i in v.split(",")]
+            # Auto-prepend https:// if missing (for Render "fromService: host" support)
+            processed_origins = []
+            for origin in origins:
+                if not origin.startswith("http"):
+                    processed_origins.append(f"https://{origin}")
+                    processed_origins.append(f"http://{origin}") # Optional for local testing
+                else:
+                    processed_origins.append(origin)
+            return processed_origins
         elif isinstance(v, (list, str)):
             return v
         raise ValueError(v)
