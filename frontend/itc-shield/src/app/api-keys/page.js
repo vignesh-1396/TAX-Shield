@@ -1,10 +1,10 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
+import Card, { CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
-import { Badge } from '@/components/ui/Badge';
+import Badge from '@/components/ui/Badge';
 import { Copy, Trash2, Key, Plus, Eye, EyeOff, AlertCircle } from 'lucide-react';
 import { useAuth } from '@/app/context/AuthContext';
 import api from '@/lib/api';
